@@ -59,7 +59,7 @@ const base=process.env.GENESIS_BASE_URL||'http://127.0.0.1:4177';
   assert.equal(final.musicLoop,true,'the bundled soundtrack must loop while the letter is open');
   await page.screenshot({path:path.join(output,'09-carta.png')});
 
-  await page.getByRole('button',{name:'Volver a caminar'}).click();
+  await page.getByRole('button',{name:'Volver a ver la historia'}).click();
   await page.evaluate(()=>window.__genesis.advance(12,true));
   await page.keyboard.press('Escape');
   const paused=await page.evaluate(()=>window.__genesis.snapshot());

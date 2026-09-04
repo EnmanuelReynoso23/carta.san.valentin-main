@@ -164,5 +164,5 @@ export const LETTER=[
   {text:'En la plaza decidiste compartir tus dones con quienes no llegaron a la cita, porque tu corazón es tan noble que no sabe responder con rencor. Pero tus dones no menguaron: lo hermoso que das al mundo permanece vivo en ti.'},
   {text:'Hoy en día es fácil perderse en pantallas donde todos parecen estar juntos mientras en silencio falta presencia real. Estar de verdad, mirarse a los ojos y cuidar a quien amamos vale infinitamente más que cualquier número o mensaje tardío.'},
   {text:'Esta carta es cariño y admiración sincera por la persona que eres. No necesitas demostrarle nada a nadie para merecer ser querida, escuchada y abrazada con devoción.'},
-  {text:'Que nunca olvides la inmensa luz que llevas por dentro. Feliz cumpleaños, Génesis. Que la Determinación guíe siempre tus pasos, y recuerda que aquí siempre habrá un lugar seguro donde eres valorada exactamente por ser tú.'},
+  {text:'Que nunca olvides la inmensa luz que llevas por dentro, Génesis. Que la Determinación guíe siempre tus pasos, y recuerda que aquí siempre habrá un lugar seguro donde eres valorada exactamente por ser tú. Te quiero por lo que eres.'},
 ];

@@ -78,3 +78,17 @@ Se comprobaron en navegador la portada, habitación, callejón, jardín, puente,
 plaza, revelación del amanecer, carta final y el encuadre móvil. La banda sonora
 incluida se precarga y reproduce tras el gesto inicial. No aparecieron errores
 de consola en la pasada final.
+
+## Revisión del 4 de septiembre · paso, invitados y pantalla completa
+
+Pasada sobre lo que se veía mal en pantalla, sin tocar la historia ni la banda sonora.
+
+- **El paso, arreglado.** La fila de caminar de las hojas no viene en orden. Midiendo la apertura de las piernas en cada dibujo: caminar da 132-142-143-149 (sube y ya: no hay paso, sólo deriva) mientras que correr da 121-153-134-140 (cerrado-abierto-cerrado-abierto, correcto). A ras de suelo la separación de los pies al caminar es 26-36-14-37, así que las poses abiertas son la 5 y la 7 y las cerradas la 6 y la 4. Puestas 4-5-6-7 los pies parecían clavados; alternándolas 5-6-7-4, con el cuerpo subiendo en la pose cerrada, el paso se lee. El ciclo de correr ya estaba bien y no se tocó.
+- **Los seis invitados ya no son ellos dos.** Salían de una tira de recortes que son variantes del mismo diseño que Génesis y Enmanuel: cambiaba la ropa, pero la cara, el pelo y la estatura eran iguales. Ahora cada uno se recolorea al cargar y se guarda en caché. El recoloreado va píxel a píxel a propósito: un filtro de tono sobre el recorte entero también gira la piel y deja las caras verdes —se probó y pasó—. Aquí lo cálido se reconoce como piel o pelo y no gira de color; la piel sólo cambia de matiz, el pelo se aclara u oscurece (negro, castaño, rubio, cobrizo) y sólo la ropa gira. Cada uno tiene además su propia estatura, que a este tamaño es lo que más distingue a una persona.
+- **Pantalla completa de verdad.** El escenario llenaba la ventana sólo a lo alto y dejaba dos franjas negras a los lados. Ahora la llena entera; de pie sigue entrando completo, porque un 16:9 recortado en vertical deja una rendija inservible. Como el dibujo ya no coincide con la caja, la subida del mundo bajo el panel de diálogo se mide contra el dibujo real y no contra el escenario.
+- **La carta deja de ser una felicitación.** Ya era la de las siete virtudes y ya era admiración por lo que ella es; sólo desentonaba el cierre. Ahora termina en «Te quiero por lo que eres» en vez de «Feliz cumpleaños».
+
+**Dos fallos que ya venían de antes**, encontrados al pasar las pruebas:
+
+- A Joel se le entregaba su don **antes de que hablara**: el atajo que existe para que al último le dé tiempo antes de acabar el acto se disparaba con que hablara Génesis en cualquier punto de la plaza. El aviso «Entregaste el don…» salía antes que su frase. Ahora el atajo exige haberle escuchado.
+- La prueba de navegador buscaba un botón «Volver a caminar» que ya no existe; el botón se llama «Volver a ver la historia».

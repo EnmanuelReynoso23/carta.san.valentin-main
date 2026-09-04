@@ -107,6 +107,7 @@ function resetWorld(){
     lit:false,
     received:null,
   }));
+  state.heardJoel=false;
   clock.set(0);
   if(testSeconds!==null)testSeconds=0;
   speaker='';
@@ -226,14 +227,30 @@ function setReduced(value){
   saveSettings();
 }
 
+/**
+  * Dónde cae de verdad el dibujo dentro del lienzo. En pantalla ancha llena la
+  * ventana y se recorta por arriba y por abajo; de pie entra entero y queda
+  * centrado. La caja del escenario no sirve para medir en el primer caso.
+  */
+function canvasRect(){
+  const r=$('world').getBoundingClientRect();
+  if(!r.width||!r.height)return {top:0,height:0,scale:1};
+  const scale=getComputedStyle($('world')).objectFit==='cover'
+    ?Math.max(r.width/W,r.height/H)
+    :Math.min(r.width/W,r.height/H);
+  return {top:r.top+(r.height-H*scale)/2,height:H*scale,scale};
+}
+
 // El diálogo puede ocupar parte del encuadre en pantallas bajas. El mundo sube
 // únicamente cuando el panel cruza la línea de suelo del lienzo.
 function dialogueLift(){
   if(state.mode!=='story'||$('dialogue').hidden)return 0;
-  const stage=$('stage').getBoundingClientRect();
+  const c=canvasRect();
   const panel=$('dialogue').getBoundingClientRect();
-  if(!stage.height)return 0;
-  return clamp((stage.bottom-panel.top)/stage.height*H-(H-GROUND)+11,0,LIFT_MAX);
+  if(!c.height)return 0;
+  // Cuánto del dibujo tapa el panel, contado en píxeles del propio dibujo.
+  const tapado=(c.top+c.height-panel.top)/c.scale;
+  return clamp(tapado-(H-GROUND)+11,0,LIFT_MAX);
 }
 
 function showLine(line,reveal){
@@ -350,9 +367,16 @@ function applyFrame(frame,dt){
     announce('Encontraste el alma de la '+light.name+'.');
   }
 
+  if(frame.line?.speaker==='Joel')state.heardJoel=true;
+
   for(const person of state.people){
-    // Se entrega el regalo al despedirse o responder: primero Génesis escucha al amigo al lado de él
-    const shouldGive = player.x > person.x - 36 || (person.name === 'Joel' && (frame.line?.speaker === 'Génesis' || player.x >= 1530 && frame.line?.speaker !== 'Joel'));
+    // Se entrega el regalo al despedirse o responder: primero Génesis escucha
+    // al amigo al lado de él. A Joel, que es el último, se le adelanta un poco
+    // la entrega para que dé tiempo antes de que acabe el acto, pero sólo
+    // después de haberle escuchado: si no, su don llegaba antes que su frase.
+    const shouldGive = player.x > person.x - 36
+      || (person.name === 'Joel' && state.heardJoel
+        && (frame.line?.speaker === 'Génesis' || player.x >= 1530 && frame.line?.speaker !== 'Joel'));
     if(person.lit||scene.kind!=='plaza'||!shouldGive||!state.carried.length)continue;
     person.lit=true;
     const given=state.carried.shift();

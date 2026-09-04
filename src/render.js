@@ -14,6 +14,44 @@ const hexMix=(a,b,t)=>{
   return '#'+[16,8,0].map(shift=>Math.round(((aa>>shift)&255)*(1-t)+((bb>>shift)&255)*t).toString(16).padStart(2,'0')).join('');
 };
 
+// Conversión de color para recolorear a los invitados sin tocarles la piel.
+function rgbToHsl(r,g,b){
+  r/=255;g/=255;b/=255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),l=(max+min)/2;
+  if(max===min)return [0,0,l];
+  const d=max-min,s=l>.5?d/(2-max-min):d/(max+min);
+  const h=max===r?((g-b)/d+(g<b?6:0)):max===g?((b-r)/d+2):((r-g)/d+4);
+  return [h/6,s,l];
+}
+function hslToRgb(h,s,l){
+  if(s===0){const v=Math.round(l*255);return [v,v,v];}
+  const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;
+  const canal=t=>{
+    t=positiveMod(t,1);
+    if(t<1/6)return p+(q-p)*6*t;
+    if(t<1/2)return q;
+    if(t<2/3)return p+(q-p)*(2/3-t)*6;
+    return p;
+  };
+  return [Math.round(canal(h+1/3)*255),Math.round(canal(h)*255),Math.round(canal(h-1/3)*255)];
+}
+
+/**
+ * Los seis invitados. Salían de una tira de recortes que son variantes del
+ * mismo diseño que Génesis y Enmanuel: cambiaba la ropa, pero la cara, el pelo
+ * y la estatura eran iguales, y parecían todos ellos dos. Aquí cada uno recibe
+ * su propio giro de tono en la ropa y el pelo, un matiz de piel distinto y una
+ * estatura propia, que a este tamaño es lo que más distingue a una persona.
+ */
+const GUESTS=[
+  {id:'simon',ropa:-.10,viveza:1.14,luz:.93,piel:-.012,pelo:{h:-.008,s:.85,l:.72},alto:1.06},
+  {id:'nora',ropa:.34,viveza:1.10,luz:1.05,piel:.016,pelo:{h:.012,s:1.25,l:1.45},alto:.93},
+  {id:'lia',ropa:-.30,viveza:1.20,luz:1.10,piel:.030,pelo:{h:.020,s:.80,l:1.85},alto:.85},
+  {id:'mateo',ropa:.52,viveza:.86,luz:.90,piel:-.022,pelo:{h:0,s:.55,l:.58},alto:1.09},
+  {id:'abril',ropa:.16,viveza:1.28,luz:1.02,piel:.008,pelo:{h:-.018,s:1.40,l:1.22},alto:.90},
+  {id:'joel',ropa:.68,viveza:.92,luz:.97,piel:-.006,pelo:{h:.006,s:.60,l:.88},alto:1.01},
+];
+
 export class Renderer{
   constructor(canvas){
     this.canvas=canvas;
@@ -22,6 +60,7 @@ export class Renderer{
     this.images={};
     this.meta={};
     this.atlas={};
+    this.tints={};
     this.t=0;
     this.soft=false;
     this.pulse=0;
@@ -82,9 +121,48 @@ export class Renderer{
     g.restore();
   }
 
-  sp(name,x,y,height,alpha=1,dir=1){
+  /**
+   * Recolorea un recorte del atlas y lo guarda. Va píxel a píxel a propósito:
+   * un filtro de tono sobre el recorte entero también gira la piel y deja las
+   * caras verdes. Aquí la piel se reconoce por su tono cálido y su claridad, y
+   * sólo se le cambia el matiz; el resto —pelo y ropa— sí gira de color.
+   */
+  tinted(name,look){
+    const key=name+'|'+look.id;
+    if(this.tints[key])return this.tints[key];
+    const frame=this.atlas[name];
+    if(!frame)return null;
+    const canvas=document.createElement('canvas');
+    canvas.width=frame[2];canvas.height=frame[3];
+    const c=canvas.getContext('2d',{willReadFrequently:true});
+    c.imageSmoothingEnabled=false;
+    c.drawImage(this.images.atlas,...frame,0,0,frame[2],frame[3]);
+    const imagen=c.getImageData(0,0,frame[2],frame[3]),d=imagen.data;
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3]<8)continue;
+      const [h,sat,luz]=rgbToHsl(d[i],d[i+1],d[i+2]);
+      // Todo lo cálido es piel o pelo y no se gira de color: girarlo entero es
+      // lo que dejaba las caras verdes. La piel sólo cambia de matiz; el pelo
+      // se aclara o se oscurece, que es como se distingue un pelo de otro.
+      const calido=h<.13||h>.92;
+      const pelo=calido&&luz<.40;
+      const nh=positiveMod(h+(calido?(pelo?look.pelo.h:look.piel):look.ropa),1);
+      const ns=clamp(sat*(pelo?look.pelo.s:calido?1:look.viveza),0,1);
+      const nl=clamp(luz*(pelo?look.pelo.l:calido?1:look.luz),0,1);
+      const [r,g,b]=hslToRgb(nh,ns,nl);
+      d[i]=r;d[i+1]=g;d[i+2]=b;
+    }
+    c.putImageData(imagen,0,0);
+    this.tints[key]=canvas;
+    return canvas;
+  }
+
+  sp(name,x,y,height,alpha=1,dir=1,tint=null){
     const frame=this.atlas[name];
     if(!frame)return;
+    const teñido=tint?this.tinted(name,tint):null;
+    const fuente=teñido||this.images.atlas;
+    const recorte=teñido?[0,0,frame[2],frame[3]]:frame;
     const scale=height/frame[3];
     const g=this.g;
     g.save();
@@ -93,8 +171,8 @@ export class Renderer{
       g.translate(Math.round(x),0);
       g.scale(-1,1);
       g.drawImage(
-        this.images.atlas,
-        ...frame,
+        fuente,
+        ...recorte,
         Math.round(-frame[2]*scale/2),
         Math.round(y-height),
         Math.round(frame[2]*scale),
@@ -102,8 +180,8 @@ export class Renderer{
       );
     }else{
       g.drawImage(
-        this.images.atlas,
-        ...frame,
+        fuente,
+        ...recorte,
         Math.round(x-frame[2]*scale/2),
         Math.round(y-height),
         Math.round(frame[2]*scale),
@@ -125,8 +203,11 @@ export class Renderer{
       // Ciclo de correr: frames 8, 9, 10, 11
       frameIndex=[8,9,10,11][Math.floor(positiveMod(phase,4))];
     }else if(walk){
-      // Ciclo de caminar: frames 4, 5, 6, 7
-      frameIndex=[4,5,6,7][Math.floor(positiveMod(phase,4))];
+      // Ciclo de caminar: la hoja no viene en orden. Medida la separación de
+      // los pies, las poses abiertas son la 5 y la 7 y las cerradas la 6 y la
+      // 4; alternándolas el paso se lee. En el orden de la hoja (4,5,6,7) los
+      // pies parecían quedarse siempre en el mismo sitio.
+      frameIndex=[5,6,7,4][Math.floor(positiveMod(phase,4))];
     }else{
       // Idle orgánico: parpadeo y guiño suave (0, 1, 2, 3)
       const blink=positiveMod(this.t+name.length*.37,5.2)<.22;
@@ -140,7 +221,10 @@ export class Renderer{
     g.globalAlpha=alpha;
     g.translate(Math.round(x),Math.round(y));
     if(dir<0)g.scale(-1,1);
-    const breathe=this.soft?0:(run||walk)?Math.sin(phase*Math.PI)*.7:Math.sin(this.t*2)*.45;
+    const breathe=this.soft?0
+      :run?Math.sin(phase*Math.PI)*.7
+      :walk?Math.cos(positiveMod(phase,4)*Math.PI)*.95
+      :Math.sin(this.t*2)*.45;
     // Suavizado HD de alta calidad para personajes nítidos y profesionales
     g.imageSmoothingEnabled=true;
     g.imageSmoothingQuality='high';
@@ -526,7 +610,8 @@ export class Renderer{
     for(const [idx,guest] of guests.entries()){
       this.chair(guest.x,GROUND,guest.dir);
       const reaction=!this.soft?Math.floor(positiveMod(this.t*2.2+idx,4)):0;
-      this.sp('sec'+String(guest.sprite+reaction).padStart(2,'0'),guest.x,GROUND+1,48,1,guest.dir);
+      const look=GUESTS[idx]||GUESTS[0];
+      this.sp('sec'+String(guest.sprite+reaction).padStart(2,'0'),guest.x,GROUND+1,Math.round(48*look.alto),1,guest.dir,look);
       // Plato con rebanada de bizcocho frente a cada uno en la mesa
       const px=guest.x+guest.dir*10;
       this.r(px-5,188,10,2,'#f0e0e3');
@@ -818,7 +903,8 @@ export class Renderer{
       if(person.lit)this.glow(x,GROUND-27,45,colour,.5+this.pulse*.1);
       const reaction=person.lit&&!this.soft?Math.floor(positiveMod(this.t*2.2+index,4)):0;
       // Personaje secundario mirando de frente hacia Génesis (hacia la izquierda, dir = -1)
-      this.sp('sec'+String(person.sprite+reaction).padStart(2,'0'),x,GROUND+1,52,person.lit?1:.72,-1);
+      const look=GUESTS[index]||GUESTS[0];
+      this.sp('sec'+String(person.sprite+reaction).padStart(2,'0'),x,GROUND+1,Math.round(52*look.alto),person.lit?1:.72,-1,look);
       if(person.lit){
         this.light(x-8,GROUND-47,colour,.65,.45);
         // ¡El personaje sostiene visiblemente el regalo en sus manos!
