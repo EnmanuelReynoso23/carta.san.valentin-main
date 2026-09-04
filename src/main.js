@@ -82,6 +82,8 @@ function resetWorld(){
   state.player={x:ACTS[0].spawn,dir:1,phase:0,walking:false};
   state.guide=null;
   state.guideSolid=false;
+  state.guideAct=-1;
+  state.dawnGuideInit=false;
   state.carried=[];
   state.particles=[];
   state.flame=false;
@@ -282,18 +284,53 @@ function applyFrame(frame,dt){
   const range=actRange[frame.act];
   const inside=clamp((state.progress-range.start)/Math.max(1e-9,range.end-range.start),0,1);
 
-  // Enmanuel corre invisible / etéreo unos metros por delante dejando estelas de luz.
-  // Al amanecer se detiene y se hace completamente visible para entregar la carta.
+  // Enmanuel sale corriendo rápido hacia el final del escenario, desprendiéndose por delante.
+  // Al llegar al final del escenario, se detiene y espera mirando hacia Génesis.
   if(scene.guide){
-    const targetX=Math.min(player.x+155+frame.act*8,scene.width-44);
-    state.guide=state.guide||{x:player.x+90,phase:0,dir:1};
-    const gdx=targetX-state.guide.x;
-    state.guide.dir=gdx>=0?1:-1;
-    state.guide.phase+=Math.abs(gdx)/5.2+dt*3.2;
-    state.guide.x=lerp(state.guide.x,targetX,1-Math.exp(-dt*3.8));
+    const endX=scene.width-64;
+    if(!state.guide||state.guideAct!==frame.act){
+      state.guideAct=frame.act;
+      state.guide={
+        x:Math.max(player.x+90,scene.spawn+100),
+        dir:1,
+        phase:0,
+        running:true,
+      };
+    }
+    if(state.guide.x<endX){
+      state.guide.dir=1;
+      state.guide.running=true;
+      state.guide.x=Math.min(endX,state.guide.x+dt*240);
+      state.guide.phase+=dt*10;
+    }else{
+      state.guide.x=endX;
+      state.guide.dir=-1;
+      state.guide.running=false;
+      state.guide.phase=0;
+    }
     state.guideSolid=false;
-  }else if(scene.kind==='dawn'&&player.x>=300){
-    state.guide={x:740,dir:-1,phase:0};
+  }else if(scene.kind==='dawn'){
+    const endX=740;
+    if(!state.dawnGuideInit){
+      state.dawnGuideInit=true;
+      state.guide={
+        x:Math.max(player.x+80,220),
+        dir:1,
+        phase:0,
+        running:true,
+      };
+    }
+    if(state.guide.x<endX){
+      state.guide.dir=1;
+      state.guide.running=true;
+      state.guide.x=Math.min(endX,state.guide.x+dt*220);
+      state.guide.phase+=dt*9.5;
+    }else{
+      state.guide.x=endX;
+      state.guide.dir=-1;
+      state.guide.running=false;
+      state.guide.phase=0;
+    }
     state.guideSolid=true;
   }else{
     state.guide=null;

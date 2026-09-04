@@ -766,10 +766,10 @@ export class Renderer{
       }
       g.globalAlpha=1;
 
-      // Silueta etérea de Enmanuel corriendo
+      // Silueta etérea de Enmanuel corriendo o esperando
       const ghostAlpha=.34+Math.sin(this.t*2.4)*.1;
       this.actor('enmanuel',x,GROUND,{
-        run:true,
+        run:Boolean(state.guide.running),
         walk:false,
         dir:state.guide.dir||1,
         phase:state.guide.phase||0,
@@ -781,7 +781,12 @@ export class Renderer{
       const x=state.guide.x-camera;
       this.glow(x,GROUND-30,55,'#ffd7a0',.25);
       this.r(x-9,GROUND+1,19,2,'#1a253866');
-      this.actor('enmanuel',x,GROUND,{walk:false,run:false,dir:state.guide.dir||-1,phase:0});
+      this.actor('enmanuel',x,GROUND,{
+        walk:false,
+        run:Boolean(state.guide.running),
+        dir:state.guide.dir||-1,
+        phase:state.guide.phase||0,
+      });
 
       // Animación de la entrega de la carta de Enmanuel a Génesis
       if(state.letterTransfer){
