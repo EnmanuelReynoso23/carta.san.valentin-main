@@ -1,14 +1,9 @@
-import {clamp} from './timeline.js';
-export const W=480,H=270,GROUND=224;
-// El panel de conversación tapa la parte baja: el mundo sube un poco mientras
-// alguien habla y por eso los fondos se dibujan más altos.
-export const LIFT_MAX=90;
-const seeded=(seed=7)=>()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};
-const positiveMod=(n,d)=>((n%d)+d)%d;
+import {clamp,positiveMod,seeded,W,H,GROUND,LIFT_MAX} from './logic.js';
+export {W,H,GROUND,LIFT_MAX};
 const hexMix=(a,b,t)=>{const aa=parseInt(a.slice(1),16),bb=parseInt(b.slice(1),16);return '#'+[16,8,0].map(s=>Math.round(((aa>>s)&255)*(1-t)+((bb>>s)&255)*t).toString(16).padStart(2,'0')).join('');};
-
-/** Cuánto ha avanzado la noche hacia el amanecer en cada acto. */
-export const DAWN=[.02,.12,.3,.55,.95];
+// Las hojas de personaje van en cuatro filas: quieta, caminando, en el aire y
+// celebrando. De ahí salen las poses del salto y la del final.
+const POSE={idle:0,blink:3,walk:4,rise:13,fall:10,cheer:14};
 
 export class Renderer{
   constructor(canvas){
@@ -38,18 +33,19 @@ export class Renderer{
     g.restore();
   }
   /**
-   * Génesis y Enmanuel salen de sus hojas grandes. La fila 0 es de frente y la
-   * fila 1 es el paso de perfil: el ciclo avanza con la distancia recorrida, así
-   * que los pies no patinan por mucho que cambie la velocidad.
+   * Génesis y Enmanuel salen de sus hojas grandes. El ciclo de caminar avanza
+   * con la distancia recorrida —así los pies no patinan— y en el aire se usa la
+   * pose de salto, para que se note cuándo despega y cuándo cae.
    */
-  actor(name,x,y,{walk=false,dir=1,phase=0,alpha=1,scale=1}={}){
+  actor(name,x,y,{walk=false,dir=1,phase=0,alpha=1,scale=1,air=0,cheer=false}={}){
     const frames=this.meta[name];if(!frames)return;
     const g=this.g;
-    const frame=walk?4+Math.floor(positiveMod(phase,4)):(positiveMod(this.t,5)<.16?3:0);
-    const f=frames[frame],s=.168*scale;
+    const index=cheer?POSE.cheer:air<0?POSE.rise:air>0?POSE.fall:
+      walk?POSE.walk+Math.floor(positiveMod(phase,4)):(positiveMod(this.t,5)<.16?POSE.blink:POSE.idle);
+    const f=frames[index],s=.168*scale;
     g.save();g.globalAlpha=alpha;g.translate(Math.round(x),Math.round(y));
     if(dir<0)g.scale(-1,1);
-    const bob=this.soft?0:walk?Math.sin(phase*Math.PI)*.5:Math.sin(this.t*2)*.4;
+    const bob=this.soft||air?0:walk?Math.sin(phase*Math.PI)*.5:Math.sin(this.t*2)*.4;
     g.drawImage(this.images[name],f.x,f.y,f.w,f.h,Math.round(-f.pivotX*s),Math.round(-f.pivotY*s+bob),Math.round(f.w*s),Math.round(f.h*s));
     g.restore();
   }
@@ -87,19 +83,136 @@ export class Renderer{
       }
     }
   }
-  ground(scene,cam,dawn){
+  /** El suelo se dibuja por tramos: donde el acto tiene un hueco corre agua. */
+  ground(scene,cam,dawn,solids){
     const green=scene.kind==='garden';
     const body=scene.kind==='room'?'#5e4455':green?'#2b4a48':hexMix('#3b4861','#b3907f',dawn);
-    this.r(0,GROUND,W,H-GROUND+LIFT_MAX,body);
-    this.r(0,GROUND,W,2,scene.kind==='room'?'#8f6c74':green?'#81a592':hexMix('#a5a0a5','#eec6a6',dawn));
-    this.r(0,GROUND+3,W,5,scene.kind==='room'?'#6d4f5f':green?'#3f6b63':hexMix('#626c80','#997b8c',dawn));
-    if(scene.kind==='room'){for(let x=-positiveMod(cam,44);x<W;x+=44)this.r(x,GROUND+8,1,H-GROUND,'#4a3646');}
-    else for(let i=0;i<44;i++){
-      const x=positiveMod(i*61.3-cam,scene.width);
+    const edge=scene.kind==='room'?'#8f6c74':green?'#81a592':hexMix('#a5a0a5','#eec6a6',dawn);
+    const under=scene.kind==='room'?'#6d4f5f':green?'#3f6b63':hexMix('#626c80','#997b8c',dawn);
+    for(const [from,to] of scene.gaps||[])this.water(from-cam,to-from,dawn);
+    for(const p of solids){
+      if(p.kind!=='suelo')continue;
+      const x=p.x-cam,w=p.w;
+      if(x>W||x+w<0)continue;
+      this.r(x,GROUND,w,H-GROUND+LIFT_MAX,body);
+      this.r(x,GROUND,w,2,edge);
+      this.r(x,GROUND+3,w,5,under);
+      if(scene.kind==='room')for(let gx=x;gx<x+w;gx+=44)this.r(gx,GROUND+8,1,H-GROUND,'#4a3646');
+    }
+    if(scene.kind!=='room')for(let i=0;i<44;i++){
+      const wx=i*61.3,x=positiveMod(wx-cam,scene.width);
+      if((scene.gaps||[]).some(([a,b])=>wx>=a-6&&wx<=b+6))continue;
       this.r(x,GROUND+9+(i%4)*7,2+(i%3),1,green?'#659680':hexMix('#8f8b98','#c9a58f',dawn));
     }
   }
-  /** La ventana del cuarto: marco, cuatro cristales, alféizar y la ciudad detrás. */
+  /** El arroyo del jardín: agua oscura con el cielo temblando encima. */
+  water(x,w,dawn){
+    if(x>W||x+w<0)return;
+    this.r(x-3,GROUND,w+6,H-GROUND+LIFT_MAX,'#20313c');
+    this.r(x-3,GROUND,3,7,'#33463f');this.r(x+w,GROUND,3,7,'#33463f');
+    this.r(x,GROUND+7,w,H-GROUND+LIFT_MAX,hexMix('#1b3b52','#4a5878',dawn));
+    this.r(x,GROUND+7,w,2,hexMix('#68b2c2','#d3a3a8',dawn));
+    for(let i=0;i<5;i++){
+      const wy=GROUND+13+i*9,offset=Math.sin(this.t*1.3+i*1.4)*4;
+      this.r(x+5+offset,wy,Math.max(3,w-11),1,i%2?'#4d7f9a66':'#9fd2d966');
+    }
+  }
+  /** Cajas, piedras, tablas y la tarima de la plaza: donde se puede pisar. */
+  platform(p,cam,scene,dawn){
+    const x=p.x-cam;
+    if(x>W+20||x+p.w<-20)return;
+    if(p.kind==='cama')return;
+    if(p.kind==='piedra'){
+      this.r(x,p.y,p.w,7,'#7b8895');this.r(x+1,p.y+1,p.w-2,2,'#a9b6bd');
+      this.r(x+2,p.y+7,p.w-4,5,'#4e5c68');this.r(x+3,p.y,p.w-6,1,'#c9d6d8');
+      return;
+    }
+    if(p.kind==='tarima'){
+      this.r(x-3,p.y-3,p.w+6,4,'#9d7a62');
+      this.r(x,p.y+1,p.w,GROUND-p.y,'#6d5348');
+      for(let i=0;i<p.w;i+=11)this.r(x+i,p.y+1,1,GROUND-p.y,'#5a4239');
+      this.r(x,p.y,p.w,2,'#c39a7c');
+      for(let i=4;i<p.w-4;i+=14)this.r(x+i,p.y+5,9,2,'#8a6b58');
+      return;
+    }
+    if(p.kind==='roca'){
+      this.r(x+2,p.y,p.w-4,4,'#5f8a72');
+      this.r(x,p.y+3,p.w,GROUND-p.y-3,'#3d5e58');
+      this.r(x+1,p.y+5,p.w-2,2,'#4f7a6d');
+      this.r(x,GROUND-5,p.w,5,'#2f4a46');
+      for(let i=4;i<p.w-5;i+=10)this.r(x+i,p.y-3,5,3,'#7fb195');
+      return;
+    }
+    if(p.kind==='tabla'){
+      // Una pasarela de tablones sobre el jardín, con sus dos patas.
+      for(const px of [x+4,x+p.w-8]){this.r(px,p.y+4,4,GROUND-p.y-4,'#6b4d36');this.r(px-1,GROUND-4,6,4,'#54402f');}
+      this.r(x-3,p.y,p.w+6,3,'#c1936a');
+      this.r(x-3,p.y+3,p.w+6,3,'#8a6444');
+      for(let i=3;i<p.w;i+=9)this.r(x+i,p.y,1,3,'#9a7250');
+      return;
+    }
+    if(p.kind==='escalon'){
+      this.r(x,p.y,p.w,GROUND-p.y,hexMix('#5a5468','#a8877e',dawn));
+      this.r(x,p.y,p.w,2,hexMix('#8d8698','#e0b79c',dawn));
+      return;
+    }
+    // Cajas apiladas: se dibujan hasta el suelo para que no floten.
+    for(let top=p.y;top<GROUND;top+=22){
+      const h=Math.min(22,GROUND-top);
+      this.r(x,top,p.w,h,'#7c5f48');this.r(x+1,top+1,p.w-2,h-2,'#96725275');
+      this.r(x,top,p.w,2,'#a9825f');this.r(x,top+h-1,p.w,1,'#4d3a2c');
+      this.r(x+p.w/2-1,top+3,2,h-6,'#5f4838');
+    }
+  }
+  /**
+   * El pastel de cumpleaños, dibujado punto a punto: dos pisos, crema que
+   * gotea, confites y una vela. La llama sólo está encendida hasta que ella
+   * sopla; a partir de ahí es la lucecita que la acompaña el resto del viaje.
+   */
+  cake(x,base,lit){
+    this.r(x-23,base-2,46,3,'#e3d3d6');this.r(x-20,base+1,40,2,'#ab8d94');
+    this.r(x-18,base-15,36,13,'#e8c79b');this.r(x-18,base-15,36,3,'#d2a97c');
+    this.r(x-18,base-19,36,5,'#fbe6ee');
+    for(let i=0;i<6;i++)this.r(x-16+i*6,base-14,3,2+((i*7)%4),'#fbe6ee');
+    for(let i=0;i<5;i++)this.r(x-14+i*7,base-11,2,2,'#e08aa0');
+    this.r(x-12,base-30,24,11,'#e8c79b');this.r(x-12,base-30,24,3,'#d2a97c');
+    this.r(x-12,base-33,24,4,'#fbe6ee');
+    for(let i=0;i<4;i++)this.r(x-10+i*6,base-29,3,2+((i*5)%3),'#fbe6ee');
+    this.r(x-8,base-36,3,3,'#e8687f');this.r(x+5,base-36,3,3,'#e8687f');
+    this.r(x-9,base-25,2,2,'#e08aa0');this.r(x+7,base-25,2,2,'#e08aa0');
+    this.r(x-1,base-43,3,10,'#f8f0f4');
+    this.r(x-1,base-40,3,2,'#e0899f');this.r(x-1,base-36,3,2,'#e0899f');
+    if(lit){
+      this.glow(x,base-45,15,'#ffce8a',.45);
+      this.r(x,base-46,1,4,'#ffe9bb');this.r(x-1,base-45,3,2,'#ffbf72');
+    }
+  }
+  /** La puerta del cuarto: cerrada mientras no se pide el deseo. */
+  door(x,open){
+    this.r(x-17,GROUND-64,34,64,'#7a5a63');
+    this.r(x-14,GROUND-60,28,60,open?'#1b2743':'#8e6a6d');
+    if(open){
+      for(let i=0;i<5;i++)this.r(x-12+i*6,GROUND-56+((i*7)%20),3,10,'#2c4670');
+      this.glow(x,GROUND-32,44,'#ffd9a0',.30);
+      this.r(x-14,GROUND-60,28,2,'#f0c58e');
+    }else{
+      this.r(x-11,GROUND-56,22,24,'#7d5b60');this.r(x-11,GROUND-28,22,24,'#7d5b60');
+      this.r(x+7,GROUND-34,3,3,'#e8c48f');
+    }
+    this.r(x-19,GROUND-68,38,5,'#9a747a');
+  }
+  /** La salida de cada escenario: una columna de luz que llama desde lejos. */
+  exitLight(x,open){
+    const g=this.g;
+    g.save();g.globalAlpha=open?.5+Math.sin(this.t*2)*.12:.16;
+    const gradient=g.createLinearGradient(0,GROUND-96,0,GROUND);
+    gradient.addColorStop(0,'#ffd9a000');gradient.addColorStop(1,'#ffd9a0');
+    g.fillStyle=gradient;g.fillRect(Math.round(x-11),GROUND-96,22,96);g.restore();
+    if(open){
+      this.glow(x,GROUND-14,30,'#ffe1ae',.35);
+      for(let i=0;i<3;i++)this.r(x-4+i*4,GROUND-26-positiveMod(this.t*22+i*13,60),2,4,'#ffe6bd');
+    }
+  }
   window(x,y){
     const w=132,h=104,g=this.g;
     this.r(x-8,y-8,w+16,h+16,'#c39a95');
@@ -130,7 +243,7 @@ export class Renderer{
     this.r(back-facing*13,y-34,15,3,tone);
     this.r(back-facing*13,y-28,15,2,tone);
   }
-  room(scene,cam){
+  room(scene,cam,state){
     this.r(0,0,W,GROUND,'#5b4358');
     for(let x=-positiveMod(cam,58)-58;x<W;x+=58){this.r(x,0,2,GROUND,'#8b647030');this.r(x+6,92,46,1,'#92697538');}
     this.r(0,16,W,7,'#b08789');this.r(0,206,W,18,'#996f77');this.r(0,209,W,2,'#d7ac9a');
@@ -151,12 +264,13 @@ export class Renderer{
     this.r(table-52,190,104,7,'#c6977f');
     this.r(table-52,197,104,3,'#a57a6c');
     this.r(table-44,200,6,24,'#7a5567');this.r(table+38,200,6,24,'#7a5567');
-    this.sp('pastel',table,190,34);
+    this.cake(table,190,!state.doorOpen);
     this.sp('regalo',table-36,190,22);
     this.sp('foto',table+34,190,20);
-    this.sp('maceta',592-cam,GROUND,44);
+    this.sp('maceta',556-cam,GROUND,44);
     this.r(300-cam,74,38,50,'#c09582');this.r(303-cam,77,32,44,'#39405f');
     this.sp('corazon',319-cam,112,22);
+    this.door(scene.exit.x-cam,state.doorOpen);
   }
   exterior(scene,cam,dawn){
     this.sky(dawn,cam);this.skyline(cam,dawn);
@@ -187,7 +301,7 @@ export class Renderer{
       this.sp('maceta',900-cam,GROUND+1,40);
     }
     if(scene.kind==='plaza'){
-      this.sp('guirnalda',700-cam,120,30);
+      this.sp('guirnalda',720-cam,124,30);
       this.sp('banco',480-cam,GROUND+1,22);
       this.sp('maceta',1020-cam,GROUND+1,40);
     }
@@ -202,6 +316,10 @@ export class Renderer{
       const f=this.atlas[who==='Luz'?'brillo0':'luna0'];if(!f)return;
       g.drawImage(this.images.atlas,...f,10,8,50,62);return;
     }
+    if(!['Génesis','Enmanuel'].includes(who)){
+      const f=this.atlas.corazon;if(!f)return;
+      g.drawImage(this.images.atlas,...f,17,10,36,58);return;
+    }
     const key=who==='Enmanuel'?'enmanuel':'genesis',frames=this.meta[key];if(!frames)return;
     const f=frames[0];g.drawImage(this.images[key],f.x,f.y,f.w,Math.min(f.h,190),12,5,48,70);
   }
@@ -211,16 +329,18 @@ export class Renderer{
     g.imageSmoothingEnabled=false;g.globalAlpha=1;
     const lift=Math.round(clamp(state.lift||0,0,LIFT_MAX));
     g.save();g.translate(0,-lift);
-    if(scene.kind==='room')this.room(scene,cam);else this.exterior(scene,cam,dawn);
-    this.ground(scene,cam,dawn);
+    if(scene.kind==='room')this.room(scene,cam,state);else this.exterior(scene,cam,dawn);
+    this.ground(scene,cam,dawn,state.solids||[]);
+    for(const p of state.solids||[])if(p.kind!=='suelo')this.platform(p,cam,scene,dawn);
+    if(scene.exit&&scene.kind!=='room')this.exitLight(scene.exit.x-cam,state.exitOpen);
     // La gente del acto IV: apagada hasta que Génesis les deja una luz.
-    for(const person of (scene.kind==='plaza'?state.people||[]:[])){
+    for(const person of state.people||[]){
       const px=person.x-cam;
       if(person.lit)this.glow(px,GROUND-26,44,'#ffd39a',.6);
-      this.sp('sec'+String(person.sprite).padStart(2,'0'),px,GROUND+1,42,person.lit?1:.45);
+      this.sp(person.sprite,px,GROUND+1,42,person.lit?1:.45);
       if(person.lit)this.light(px+16,GROUND-46,'#ffd8a2',.7,.5);
     }
-    for(const item of (scene.kind==='garden'?state.lights||[]:[])){
+    for(const item of state.lights||[]){
       if(item.taken)continue;
       this.light(item.x-cam,item.y+Math.sin(this.t*1.4+item.x)*3,item.color,1.1);
     }
@@ -231,12 +351,19 @@ export class Renderer{
       this.actor('enmanuel',state.ghost.x-cam,GROUND,{walk:!state.ghostSolid,dir:state.ghost.dir||1,phase:state.ghost.phase||0,alpha});
       if(state.ghostSolid)this.sp('sobre',state.ghost.x-cam,GROUND-52,20);
     }
+    // Lo que se puede tocar parpadea un poco cuando ella está al lado.
+    if(state.prompt){
+      const px=state.prompt.x-cam;
+      this.glow(px,GROUND-22,26,'#ffe6bd',.22+Math.sin(this.t*4)*.07);
+      this.sp('brillo1',px,state.prompt.y+Math.sin(this.t*3)*2,11);
+    }
     const player=state.player;
     this.r(player.x-cam-10,GROUND+1,21,2,'#10253766');
-    this.actor('genesis',player.x-cam,GROUND,{walk:player.walking,dir:player.dir,phase:player.phase});
+    this.actor('genesis',player.x-cam,player.y,{walk:player.walking,dir:player.dir,phase:player.phase,
+      air:player.onGround?0:Math.sign(player.vy||0)||-1,cheer:state.cheer});
     for(let i=0;i<(state.carried||[]).length;i++){
       const item=state.carried[i];
-      this.light(player.x-cam-player.dir*(20+i*7),GROUND-64-Math.sin(this.t*1.5+i*.7)*4,item.color,.55,.5);
+      this.light(player.x-cam-player.dir*(20+i*7),player.y-64-Math.sin(this.t*1.5+i*.7)*4,item.color,.55,.5);
     }
     if(state.flame)this.light(state.flameX-cam,state.flameY,'#ffce8a',1.2);
     for(const p of state.particles||[]){

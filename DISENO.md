@@ -21,3 +21,42 @@ Se revisaron las capturas del juego ya construido y se corrigió lo que se veía
 - **Puente y amanecer**: el río devuelve reflejos de la ciudad y de la luna, la tarima tiene tablones y el pavimento del amanecer se vuelve cálido con el cielo. La luna es un creciente redondo y no dos bloques.
 
 Comprobado en navegador: recorrido automático completo hasta la carta con los siete corazones, sin caídas en el puente, sin errores de página, guardado y pausa correctos, y **12,8 minutos de duración medida** en el modo historia. Las pruebas ahora reescriben siempre las capturas, verifican que nadie se caiga y que Génesis quede por encima del panel de conversación en móvil.
+
+## Revisión del 4 de septiembre · el juego, jugado
+
+La versión anterior se contaba sola: bonita, pero no había nada que hacer. Esta
+pasada la convierte en el videojuego que pedía el encargo, sin tocar ni una
+palabra de la historia ni perder lo que ya funcionaba.
+
+- **Movimiento nativo.** Génesis se mueve de verdad: acelera, frena, salta 45
+  píxeles con perdón de borde (coyote) y memoria de salto (buffer), y aterriza
+  sobre cajas, rocas, piedras del arroyo y la tarima de la plaza. Los mismos
+  mandos valen con teclado, con los botones de la pantalla y con un mando de
+  consola; un toque muy corto no se pierde aunque caiga entre dos fotogramas.
+- **Cinco actos con cosas que hacer.** Pedir el deseo abre la puerta del cuarto;
+  del camino no se sale sin las cinco luces; de la plaza no se sale mientras
+  alguien siga a oscuras. Por el camino hay cosas que mirar —la ventana, el
+  regalo, la foto, el buzón, el banco— que no hacen falta pero cuentan más.
+- **Nadie pierde.** No hay vidas ni derrota. Si se cae por el arroyo vuelve al
+  suelo firme con un «Otra vez, sin prisa», y el viaje se guarda en cada paso
+  importante: al volver, **Continuar mi viaje**.
+- **El modo historia sigue ahí.** Quien juega solo usa exactamente los mismos
+  mandos que una persona: camina, salta y pulsa. No se salta un paso, se para a
+  mirarlo todo y dura 3,2 minutos, como la canción. Al tocar cualquier tecla,
+  ella recupera el control.
+- **El pastel está dibujado a mano**, punto a punto: dos pisos, crema que gotea,
+  confites y una vela encendida que sólo se apaga —se suelta— cuando sopla.
+- **La música es siempre la suya.** Se quitaron los botones de fuente y el
+  archivo local: la canción de YouTube se conecta sola al empezar, y si no puede
+  sonar entra la melodía del juego por detrás, sin avisos ni preguntas.
+- **Para el teléfono.** Se instala como aplicación (manifiesto, iconos propios
+  dibujados por código y trabajador de servicio), abre a pantalla completa,
+  funciona sin internet y tiene sus botones táctiles bajo el escenario. Tocar el
+  reproductor de YouTube ya no pausa la partida.
+
+Comprobado: 14 pruebas en Node —incluida una partida entera del modo historia
+que verifica que no falta ni una de las 37 frases, que se recogen las cinco
+luces, que se reparten las cuatro y que nadie se cae— y una pasada en navegador
+que juega el primer acto con el teclado de verdad, termina el resto solo, y
+revisa el guardado, la pausa, el teléfono y los botones táctiles. Sin errores de
+página.

@@ -4,60 +4,92 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#141c36">
-  <meta name="description" content="Una historia de pixel art que se cuenta sola, del tamaño de una canción. Para Génesis.">
+  <meta name="description" content="La odisea de Génesis: una aventura de pixel art que se juega, con la ciudad encendida, siete luces y una carta al final.">
   <title>La odisea de Génesis · Una luz para ti</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23f5bf69' d='M7 2h2v3H7zM6 6h4v5H6zM5 11h6v3H5z'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Para Génesis">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="shell">
     <section class="game-area" aria-label="La odisea de Génesis">
       <header class="topbar">
-        <a class="brand" href="#" id="home" aria-label="Pausar la historia"><span class="heart-icon">✦</span> Para Génesis</a>
+        <a class="brand" href="#" id="home" aria-label="Pausar el juego"><span class="heart-icon">✦</span> Para Génesis</a>
         <div class="toolbar">
+          <button id="auto" aria-pressed="false" title="Que se cuente sola (H)">▶ Historia</button>
           <button id="pause" aria-label="Pausar" title="Pausar (Escape)">Ⅱ</button>
           <button id="sound" aria-pressed="true" aria-label="Silenciar música" title="Silenciar música">♫</button>
+          <button id="full" aria-pressed="false" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
         </div>
       </header>
       <div class="stage" id="stage">
-        <canvas id="world" width="480" height="270" aria-label="Génesis camina por una ciudad de noche siguiendo una lucecita. La historia avanza sola."></canvas>
+        <canvas id="world" width="480" height="270" aria-label="Génesis camina por una ciudad de noche siguiendo una lucecita. Se mueve con las flechas y salta con la flecha de arriba."></canvas>
         <div class="scene-label" id="sceneLabel" hidden><span id="actLabel"></span><h2 id="placeLabel"></h2><p id="note"></p></div>
+        <div class="hud" id="hud" hidden>
+          <p class="goal" id="goal"></p>
+          <div class="heart-collection" id="lights" aria-label="Luces que llevas"></div>
+        </div>
+        <p class="interaction" id="interaction" hidden></p>
+        <p class="toast" id="toast" role="status" hidden></p>
         <div class="song-bar" aria-hidden="true"><span id="elapsed"></span></div>
         <section class="cover" id="cover" aria-labelledby="title">
           <p class="dedication">Hay personas que merecen un universo.</p>
           <h1 id="title">Génesis</h1>
           <p class="cover-sub">Una luz para ti</p>
           <div class="cover-buttons">
-            <button class="primary" id="start" disabled>Preparando tu historia…</button>
+            <button class="primary" id="start" disabled>Preparando tu aventura…</button>
+            <button class="secondary" id="continue" hidden>Continuar mi viaje</button>
+            <button class="text-button" id="storyMode">O que se cuente sola</button>
           </div>
-          <p class="cover-foot">Se cuenta sola, del tamaño de una canción. Solo mírala.</p>
+          <p class="cover-foot">Muévete con ← →, salta con ↑ y habla con E. En el teléfono, con los botones de abajo.</p>
         </section>
         <section id="dialogue" class="dialogue" aria-label="La historia" hidden>
           <div class="portrait"><canvas id="portrait" width="70" height="78" aria-hidden="true"></canvas></div>
-          <div class="dialogue-copy"><p class="speaker" id="speaker"></p><p id="line" aria-live="polite"></p></div>
+          <div class="dialogue-copy"><p class="speaker" id="speaker"></p><p id="line" aria-live="polite"></p>
+            <button id="next" type="button">Seguir <span>▾</span></button></div>
         </section>
         <section id="pausePanel" class="overlay" aria-labelledby="pauseTitle" hidden>
-          <div class="pause-card"><span class="pause-heart">✦</span><h2 id="pauseTitle">Puedes tomarte tu tiempo.</h2><p>El cielo seguirá aquí cuando vuelvas.</p><button class="primary" id="resume">Seguir mirando</button><button class="secondary" id="restart">Volver al comienzo</button><label><input type="checkbox" id="reduced"> Movimiento suave</label></div>
+          <div class="pause-card"><span class="pause-heart">✦</span><h2 id="pauseTitle">Puedes tomarte tu tiempo.</h2>
+            <p>El cielo seguirá aquí cuando vuelvas.</p>
+            <button class="primary" id="resume">Seguir jugando</button>
+            <button class="secondary" id="restart">Volver al comienzo</button>
+            <label><input type="checkbox" id="reduced"> Movimiento suave</label>
+            <label><input type="checkbox" id="autoCheck"> Que se cuente sola</label>
+            <p class="save-note">← → caminar · ↑ saltar · E hablar · Escape pausar. Tu viaje se guarda solo.</p>
+          </div>
         </section>
         <section id="ending" class="ending" aria-labelledby="endingTitle" hidden>
           <div class="letter-envelope" aria-hidden="true"><span>✦</span></div>
-          <article class="letter"><p class="letter-small">Al final del camino había una carta.</p><h2 id="endingTitle">Querida Génesis:</h2><div id="letterText"></div><p class="signature">Con cariño, Enmanuel <span>✦</span></p><div class="ending-actions"><button class="primary" id="replay">Volver a caminar</button></div></article>
+          <article class="letter"><p class="letter-small">Al final del camino había una carta.</p><h2 id="endingTitle">Querida Génesis:</h2><div id="letterText"></div><p class="signature">Con cariño, Enmanuel <span>✦</span></p><div class="ending-actions"><button class="primary" id="replay">Volver a caminar</button><button class="secondary" id="look">Mirar el amanecer</button></div></article>
         </section>
       </div>
-      <footer class="understage"><span id="hint">La historia avanza sola · Escape para pausar</span><span class="journey-label">Hecho para hacerte sonreír.</span></footer>
+      <div class="touch-controls" id="pad" aria-label="Controles">
+        <div class="pad-side">
+          <button data-hold="left" aria-label="Izquierda">◀</button>
+          <button data-hold="right" aria-label="Derecha">▶</button>
+        </div>
+        <div class="pad-side">
+          <button data-hold="action" aria-label="Hablar o mirar">✦</button>
+          <button data-hold="jump" aria-label="Saltar">▲</button>
+        </div>
+      </div>
+      <footer class="understage"><span id="hint">← → caminar<b>·</b>↑ saltar<b>·</b>E hablar<b>·</b>Escape pausar</span><span class="journey-label">Hecho para hacerte sonreír.</span></footer>
     </section>
-    <aside class="music-dock" aria-label="Música de la historia">
+    <aside class="music-dock" aria-label="Música del viaje">
       <div class="music-heading"><span class="tiny-heart">✦</span><h2>El sonido de este viaje</h2></div>
-      <p class="track-name">Undertale All Human Soul Themes</p><p class="track-by">La canción que elegiste · la historia dura lo que ella</p>
+      <p class="track-name">Undertale All Human Soul Themes</p><p class="track-by">La canción que elegiste · suena sola desde el primer paso</p>
       <div class="video-box"><div id="youtube"></div><div id="videoPlaceholder"><span>♫</span><p>La canción se carga al empezar.</p><button id="loadYoutube" class="secondary">Conectar YouTube</button></div></div>
-      <p id="audioStatus" class="audio-status" role="status">Empieza la historia para activar el sonido.</p>
+      <p id="audioStatus" class="audio-status" role="status">Empieza la aventura para activar el sonido.</p>
       <label class="volume-label" for="volume">Volumen <output id="volumeValue">35%</output></label><input id="volume" type="range" min="0" max="100" value="35">
-      <div class="source-buttons"><button id="youtubeSource" class="selected" aria-pressed="true">Tu canción</button><button id="originalSource" aria-pressed="false">Melodía del juego</button></div>
       <a class="music-link" href="https://www.youtube.com/watch?v=gCS3ow7lSZA" target="_blank" rel="noopener">Abrir canción en YouTube ↗</a>
       <div class="dock-poem"><span>✦ ✦ ✦</span><p>Que cada luz te recuerde<br>que también hay cariño para ti.</p></div>
     </aside>
   </main>
-  <noscript>Activa JavaScript para ver la historia de Génesis.</noscript>
+  <noscript>Activa JavaScript para jugar la historia de Génesis.</noscript>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

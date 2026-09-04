@@ -1,7 +1,16 @@
 {
-  "name": "genesis-siete-corazones",
-  "version": "1.0.0",
+  "name": "genesis-odisea",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "scripts": {"start": "node server.mjs", "test": "node --test tests/logic.test.mjs"}
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/logic.test.mjs",
+    "test:navegador": "node tests/browser.cjs",
+    "test:cancion": "node tests/youtube-check.cjs",
+    "iconos": "node tools/icons.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
 }
