@@ -84,7 +84,9 @@ function resetWorld(){
   state.guideSolid=false;
   state.carried=[];
   state.particles=[];
-  state.flame=true;
+  state.flame=false;
+  state.candleLit=true;
+  state.blowTriggered=false;
   state.noteUntil=0;
   state.lights=(ACTS.find(act=>act.lights)?.lights||[]).map((x,index)=>({
     x,
@@ -320,10 +322,17 @@ function applyFrame(frame,dt){
   }
 
   if(scene.kind==='room'){
-    state.flame=true;
-    const release=clamp((inside-.78)/.2,0,1);
-    state.flameX=lerp(510,player.x+30,release);
-    state.flameY=lerp(175,GROUND-74,release)-Math.sin(state.time*2.3)*2;
+    const release=clamp((inside-.76)/.22,0,1);
+    state.candleLit = release === 0;
+    state.flame = release > 0;
+    state.flameX=lerp(480,player.x+40,release);
+    state.flameY=lerp(144,GROUND-74,release)-Math.sin(state.time*2.3)*6;
+    if(release > 0 && !state.blowTriggered){
+      state.blowTriggered = true;
+      sparkle(480, 142, '#ffd58a', 36);
+      sparkle(480, 140, '#ffffff', 20);
+      sparkle(480, 144, '#ff9933', 18);
+    }
   }else if(scene.kind!=='dawn'){
     state.flame=true;
     state.flameX=(state.guide?.x||player.x+58);

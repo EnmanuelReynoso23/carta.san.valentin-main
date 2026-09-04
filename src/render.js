@@ -152,6 +152,62 @@ export class Renderer{
     }
   }
 
+  star(x,y,color='#ffd88a',size=1.35){
+    const g=this.g;
+    const pulse=1+.18*Math.sin(this.t*6);
+    const rad=17*size*pulse;
+    this.glow(x,y,rad*2.4,color,.58);
+    this.glow(x,y,rad*.9,'#ffffff',.7);
+
+    g.save();
+    g.translate(Math.round(x),Math.round(y));
+    const rot=Math.sin(this.t*2)*.18;
+    g.rotate(rot);
+
+    // 4 rayos principales dorados de la estrella guía (✦)
+    const len=Math.round(10*size*pulse);
+    const thick=Math.max(1,Math.round(2.2*size));
+    g.fillStyle=color;
+    g.beginPath();
+    g.moveTo(0,-len);
+    g.lineTo(thick,0);
+    g.lineTo(0,len);
+    g.lineTo(-thick,0);
+    g.closePath();
+    g.fill();
+
+    g.beginPath();
+    g.moveTo(-len,0);
+    g.lineTo(0,thick);
+    g.lineTo(len,0);
+    g.lineTo(0,-thick);
+    g.closePath();
+    g.fill();
+
+    // 4 rayos diagonales menores
+    const sub=Math.round(len*.5);
+    g.fillStyle='#fff3c6';
+    g.beginPath();
+    g.moveTo(0,-sub);g.lineTo(sub,0);g.lineTo(0,sub);g.lineTo(-sub,0);
+    g.closePath();
+    g.fill();
+
+    // Núcleo brillante blanco
+    g.fillStyle='#ffffff';
+    g.fillRect(-1,-1,3,3);
+    g.restore();
+
+    // Estela de chispitas mágicas orbitando
+    if(!this.soft){
+      for(let i=0;i<4;i++){
+        const orbit=this.t*3.2+i*(Math.PI/2);
+        const ox=x+Math.cos(orbit)*8*size;
+        const oy=y+Math.sin(orbit)*6*size;
+        this.r(ox,oy,1,1,i%2?'#ffffff':'#ffe89c');
+      }
+    }
+  }
+
   sky(dawn,cam){
     const g=this.g;
     const gradient=g.createLinearGradient(0,0,0,H);
@@ -307,11 +363,23 @@ export class Renderer{
     for(let i=0;i<4;i++)this.r(x-10+i*6,base-29,3,2+((i*5)%3),'#fbe6ee');
     this.r(x-8,base-36,3,3,'#e8687f');this.r(x+5,base-36,3,3,'#e8687f');
     this.r(x-9,base-25,2,2,'#e08aa0');this.r(x+7,base-25,2,2,'#e08aa0');
+    // Vela con mecha
     this.r(x-1,base-43,3,10,'#f8f0f4');
     this.r(x-1,base-40,3,2,'#e0899f');this.r(x-1,base-36,3,2,'#e0899f');
+    this.r(x,base-45,1,2,'#4a373a');
     if(lit){
-      this.glow(x,base-45,15,'#ffce8a',.45);
-      this.r(x,base-46,1,4,'#ffe9bb');this.r(x-1,base-45,3,2,'#ffbf72');
+      // Llama viva animada y parpadeante
+      const flick=Math.sin(this.t*15)*.8;
+      const h=5+Math.abs(Math.sin(this.t*12))*3;
+      this.glow(x,base-48,22,'#ffbe65',.55+Math.sin(this.t*8)*.08);
+      this.glow(x,base-48,10,'#ffffff',.45);
+      this.r(x-2,base-48+flick,5,h,'#ff9933');
+      this.r(x-1,base-50+flick,3,h,'#ffde6a');
+      this.r(x,base-51+flick,1,h-1,'#ffffff');
+    }else{
+      // Voluta de humo suave al apagarse
+      const s=positiveMod(this.t*3.5,3.5);
+      this.r(x+Math.sin(s*2.5)*2,base-46-s*4,1,2,'#baa8b666');
     }
   }
 
@@ -374,7 +442,7 @@ export class Renderer{
     this.r(table-44,200,6,24,'#7a5567');
     this.r(table+38,200,6,24,'#7a5567');
 
-    const candleLit = !state?.flame || state.flameX <= table;
+    const candleLit = Boolean(state?.candleLit ?? (!state?.flame || state.flameX <= table));
     this.cake(table,190,candleLit);
     this.sp('regalo',table-36,190,22);
     this.sp('foto',table+34,190,20);
@@ -694,7 +762,7 @@ export class Renderer{
         .48,
       );
     }
-    if(state.flame)this.light(state.flameX-camera,state.flameY,'#ffd18d',1.16);
+    if(state.flame)this.star(state.flameX-camera,state.flameY,'#ffd88a',1.35);
 
     for(const particle of state.particles||[]){
       g.globalAlpha=clamp(particle.life,0,1);
