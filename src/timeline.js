@@ -49,7 +49,8 @@ export function frameAt(timeline,p){
   const x=step.kind==='walk'?lerp(step.from,step.to,smooth(local)):
     transitionAfterCut?step.nextAt:step.at;
   const walking=step.kind==='walk'&&step.distance>1&&local>0&&local<1;
-  return {index,step,local,x,walking,act:transitionAfterCut?step.nextAct:step.act,
+  const running=walking&&step.distance>130;
+  return {index,step,local,x,walking,running,act:transitionAfterCut?step.nextAct:step.act,
     dir:step.kind==='walk'?Math.sign(step.to-step.from)||1:0,
     line:step.kind==='say'?step:null,
     // Se escribe en el primer 22 % y queda completo la mayor parte del tiempo.

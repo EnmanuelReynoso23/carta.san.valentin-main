@@ -100,19 +100,37 @@ export class Renderer{
     g.restore();
   }
 
-  actor(name,x,y,{walk=false,dir=1,phase=0,alpha=1,scale=1}={}){
+  actor(name,x,y,{walk=false,run=false,cheer=false,jump=false,dir=1,phase=0,alpha=1,scale=1}={}){
     const frames=this.meta[name];
     if(!frames)return;
-    const walkingFrame=[5,6,7,4][Math.floor(positiveMod(phase,4))];
-    const idleFrame=positiveMod(this.t+name.length*.37,5.4)<.16?3:0;
-    const frame=frames[walk?walkingFrame:idleFrame];
-    const size=.172*scale;
+    let frameIndex=0;
+    if(cheer){
+      frameIndex=14; // Pose de festejo con brazos arriba y sonrisa
+    }else if(jump){
+      frameIndex=13; // Salto en el aire
+    }else if(run){
+      // Ciclo de correr: frames 8, 9, 10, 11
+      frameIndex=[8,9,10,11][Math.floor(positiveMod(phase,4))];
+    }else if(walk){
+      // Ciclo de caminar: frames 4, 5, 6, 7
+      frameIndex=[4,5,6,7][Math.floor(positiveMod(phase,4))];
+    }else{
+      // Idle orgánico: parpadeo y guiño suave (0, 1, 2, 3)
+      const blink=positiveMod(this.t+name.length*.37,5.2)<.22;
+      frameIndex=blink?(positiveMod(this.t,8)<4?2:3):0;
+    }
+
+    const frame=frames[frameIndex]||frames[0];
+    const size=.175*scale;
     const g=this.g;
     g.save();
     g.globalAlpha=alpha;
     g.translate(Math.round(x),Math.round(y));
     if(dir<0)g.scale(-1,1);
-    const breathe=this.soft?0:walk?Math.sin(phase*Math.PI)*.55:Math.sin(this.t*2)*.45;
+    const breathe=this.soft?0:(run||walk)?Math.sin(phase*Math.PI)*.7:Math.sin(this.t*2)*.45;
+    // Suavizado HD de alta calidad para personajes nítidos y profesionales
+    g.imageSmoothingEnabled=true;
+    g.imageSmoothingQuality='high';
     g.drawImage(
       this.images[name],
       frame.x,frame.y,frame.w,frame.h,
@@ -121,6 +139,7 @@ export class Renderer{
       Math.round(frame.w*size),
       Math.round(frame.h*size),
     );
+    g.imageSmoothingEnabled=false;
     g.restore();
   }
 
@@ -570,7 +589,12 @@ export class Renderer{
     }
     const key=who==='Enmanuel'?'enmanuel':'genesis';
     const frame=this.meta[key]?.[0];
-    if(frame)g.drawImage(this.images[key],frame.x,frame.y,frame.w,Math.min(frame.h,210),12,4,48,72);
+    if(frame){
+      g.imageSmoothingEnabled=true;
+      g.imageSmoothingQuality='high';
+      g.drawImage(this.images[key],frame.x,frame.y,frame.w,Math.min(frame.h,210),12,4,48,72);
+      g.imageSmoothingEnabled=false;
+    }
   }
 
   render(state){
@@ -616,26 +640,37 @@ export class Renderer{
       this.light(item.x-camera,item.y+Math.sin(this.t*1.45+item.x)*3,item.color,1.08);
     }
 
-    // Enmanuel permanece completamente invisible durante el trayecto. La luz
-    // y pequeñas alteraciones del entorno marcan que pasó por allí.
+    // Enmanuel corre invisible / etéreo por delante con estelas de luz.
+    // Su silueta translúcida anima la carrera y guía el camino.
     if(state.guide&&!state.guideSolid){
       const x=state.guide.x-camera;
-      const flicker=.15+Math.sin(this.t*2.2)*.05;
-      this.glow(x,GROUND-15,31,'#9fe3c8',flicker);
-      for(let step=0;step<3;step++){
-        const sx=x-step*14-6;
-        const alpha=clamp(1-step*.27,0,1)*(.2+this.pulse*.1);
+      const flicker=.22+Math.sin(this.t*3)*.08;
+      this.glow(x,GROUND-26,42,'#9fe3c8',flicker);
+      for(let step=0;step<4;step++){
+        const sx=x-(state.guide.dir||1)*(step*15+6);
+        const alpha=clamp(1-step*.24,0,1)*(.28+this.pulse*.1);
         g.globalAlpha=alpha;
         this.r(sx,GROUND-2-(step%2),4,1,'#bcebd8');
+        this.glow(sx,GROUND-2,7,'#9fe3c8',alpha*.45);
       }
       g.globalAlpha=1;
+
+      // Silueta etérea de Enmanuel corriendo
+      const ghostAlpha=.34+Math.sin(this.t*2.4)*.1;
+      this.actor('enmanuel',x,GROUND,{
+        run:true,
+        walk:false,
+        dir:state.guide.dir||1,
+        phase:state.guide.phase||0,
+        alpha:ghostAlpha,
+      });
     }
 
     if(state.guideSolid&&state.guide){
       const x=state.guide.x-camera;
-      this.glow(x,GROUND-30,55,'#ffd7a0',.22);
+      this.glow(x,GROUND-30,55,'#ffd7a0',.25);
       this.r(x-9,GROUND+1,19,2,'#1a253866');
-      this.actor('enmanuel',x,GROUND,{walk:false,dir:state.guide.dir||-1,phase:0});
+      this.actor('enmanuel',x,GROUND,{walk:false,run:false,dir:state.guide.dir||-1,phase:0});
       this.sp('sobre',x-15,GROUND-51,19);
     }
 
@@ -643,6 +678,8 @@ export class Renderer{
     this.r(player.x-camera-11,GROUND+1,23,2,'#0b172766');
     this.actor('genesis',player.x-camera,GROUND,{
       walk:player.walking,
+      run:player.running,
+      cheer:Boolean(state.cheerUntil&&state.time<state.cheerUntil),
       dir:player.dir,
       phase:player.phase,
     });

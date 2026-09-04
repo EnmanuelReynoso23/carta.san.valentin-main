@@ -252,15 +252,20 @@ function applyFrame(frame,dt){
   }
 
   const dx=frame.x-player.x;
+  const isRunning=Boolean(frame.running||(frame.walking&&(frame.step.distance>130||Math.abs(dx)/dt>42)));
+  player.walking=frame.walking;
+  player.running=isRunning;
   const previousStep=Math.floor(player.phase);
   if(Math.abs(dx)>.01){
-    player.phase+=Math.abs(dx)/8.5;
+    player.phase+=Math.abs(dx)/(isRunning?5.6:8.5);
     player.dir=dx>0?1:-1;
   }
   const nextStep=Math.floor(player.phase);
-  if(frame.walking&&!state.reduced&&nextStep!==previousStep&&Math.abs(dx)<24)footstep(frame.x,player.dir);
+  if(frame.walking&&!state.reduced&&nextStep!==previousStep&&Math.abs(dx)<28){
+    footstep(frame.x,player.dir);
+    if(isRunning)sparkle(frame.x-player.dir*14,GROUND-4,'#ffe3b0',3);
+  }
   player.x=frame.x;
-  player.walking=frame.walking;
   music.colour=frame.act;
 
   if(frame.line)showLine(frame.line,frame.reveal);
@@ -273,13 +278,15 @@ function applyFrame(frame,dt){
   const range=actRange[frame.act];
   const inside=clamp((state.progress-range.start)/Math.max(1e-9,range.end-range.start),0,1);
 
-  // Durante el viaje Enmanuel no se dibuja: solo altera luces, hojas y charcos
-  // unos metros por delante. Su sprite aparece al amanecer, cuando se detiene.
+  // Enmanuel corre invisible / etéreo unos metros por delante dejando estelas de luz.
+  // Al amanecer se detiene y se hace completamente visible para entregar la carta.
   if(scene.guide){
-    const x=Math.min(player.x+145+frame.act*8,scene.width-44);
-    state.guide=state.guide||{x,phase:0};
-    state.guide.phase+=Math.abs(x-state.guide.x)/8+dt*1.4;
-    state.guide.x=x;
+    const targetX=Math.min(player.x+155+frame.act*8,scene.width-44);
+    state.guide=state.guide||{x:player.x+90,phase:0,dir:1};
+    const gdx=targetX-state.guide.x;
+    state.guide.dir=gdx>=0?1:-1;
+    state.guide.phase+=Math.abs(gdx)/5.2+dt*3.2;
+    state.guide.x=lerp(state.guide.x,targetX,1-Math.exp(-dt*3.8));
     state.guideSolid=false;
   }else if(scene.kind==='dawn'&&player.x>=300){
     state.guide={x:790,dir:-1,phase:0};
@@ -293,6 +300,7 @@ function applyFrame(frame,dt){
     if(light.taken||scene.kind!=='garden'||player.x<light.x-5)continue;
     light.taken=true;
     state.carried.push(light);
+    state.cheerUntil=state.time+1.2;
     refreshVirtues();
     sparkle(light.x,light.y,light.color,27);
     music.tone(70+state.carried.length*2,.45,.11,'sine');
