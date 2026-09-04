@@ -1,64 +1,32 @@
-# 💌 Carta Digital para San Valentín – 2 Versiones con HTML, CSS y JS 
+# La odisea de Génesis · Una luz para ti
 
+Una historia de pixel art que se cuenta sola, del tamaño de una canción.
 
-Este proyecto es una aplicación web diseñada para crear y enviar cartas personalizadas de San Valentín. 
+Se abre, se pulsa **Empezar la historia** y ya está: Génesis camina, habla y sigue una lucecita
+por la ciudad mientras suena la canción. No hay que jugar nada. Dura lo mismo que la música
+(unos 3 minutos y 12 segundos) y termina con una carta.
 
-## Descripción
+## La historia
 
-Carta San Valentín permite a los usuarios crear cartas personalizadas con mensajes especiales para sus seres queridos. La aplicación está construida utilizando HTML, CSS y JavaScript para una experiencia de usuario atractiva y funcional.
+| Acto | Dónde |
+| --- | --- |
+| I · La espera | Su cuarto, el pastel y las sillas que se quedaron vacías |
+| II · La chispa | La calle, y alguien que va por delante sin dejarse ver |
+| III · La travesía | El camino donde recoge las luces que siempre fueron suyas |
+| IV · Los otros | La plaza: reparte luz, y también le dan a ella |
+| V · El amanecer | El que iba delante se detiene, y le entrega la carta |
 
-## Características
+## Cómo verla
 
-- **Creación de cartas personalizadas**: Los usuarios pueden crear cartas con mensajes personalizados.
-- **Temas y estilos**: Diferentes temas y estilos para personalizar las cartas.
-- **Vista previa en tiempo real**: Los usuarios pueden ver una vista previa de la carta mientras la están creando.
-- **Envío por correo electrónico**: Posibilidad de enviar la carta directamente por correo electrónico.
+- En línea: se publica solo con cada cambio en `main`.
+- En local: `node server.mjs` y abrir `http://127.0.0.1:4177`.
 
-## Instalación
+## Cómo está hecho
 
-Para ejecutar este proyecto localmente, sigue estos pasos:
+- Canvas 2D a 480×270, JavaScript en módulos, sin dependencias.
+- `src/story.js` — el guion. `src/timeline.js` — reparte el tiempo de la canción entre los pasos.
+- `src/render.js` — los escenarios y los personajes. `src/audio.js` — la canción y la melodía de respaldo.
+- `assets/` — las hojas de sprites originales y sus recortes con el punto de apoyo en los pies.
+- `tests/` — el recorrido completo comprobado en navegador y las pruebas de la línea de tiempo.
 
-1. Clona este repositorio:
-   ```bash
-   git clone https://github.com/EnmanuelReynoso23/carta.san.valentin-main.git
-Navega al directorio del proyecto:
-bash
-cd carta.san.valentin-main
-Abre index.html en tu navegador preferido.
-Uso
-Abre la aplicación en tu navegador.
-Personaliza tu carta seleccionando un tema y escribiendo tu mensaje.
-Previsualiza tu carta en tiempo real.
-Envía tu carta por correo electrónico o descárgala para imprimir.
-Tecnologías
-Este proyecto utiliza las siguientes tecnologías:
-
-HTML: Estructura de la aplicación.
-CSS: Estilos y diseño visual.
-JavaScript: Funcionalidad y lógica de la aplicación.
-Contribuciones
-Las contribuciones son bienvenidas. Si deseas contribuir, por favor sigue estos pasos:
-
-Haz un fork del repositorio.
-Crea una nueva rama (git checkout -b feature/nueva-caracteristica).
-Realiza tus cambios y haz commit (git commit -m 'Añadir nueva característica').
-Sube tus cambios (git push origin feature/nueva-caracteristica).
-Abre un Pull Request.
-Licencia
-Este proyecto está bajo la licencia MIT. Consulta el archivo LICENSE para más detalles.
-
-Contacto
-Si tienes alguna pregunta o sugerencia, no dudes en contactar a EnmanuelReynoso23 a través de [tu correo electrónico o redes sociales].
-
-¡Gracias por utilizar Carta San Valentín! Esperamos que disfrutes personalizando y enviando tus cartas de amor.
-
-
-
-
-
-
-
-
-
-
-![carta-th-1](https://github.com/user-attachments/assets/226b6d0f-90b9-4f90-8c5e-75f372481e22)
+La carta de San Valentín anterior ya no se publica. Sigue en el historial de git por si algún día hace falta.
