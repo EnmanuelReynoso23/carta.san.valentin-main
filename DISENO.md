@@ -92,3 +92,17 @@ Pasada sobre lo que se veía mal en pantalla, sin tocar la historia ni la banda 
 
 - A Joel se le entregaba su don **antes de que hablara**: el atajo que existe para que al último le dé tiempo antes de acabar el acto se disparaba con que hablara Génesis en cualquier punto de la plaza. El aviso «Entregaste el don…» salía antes que su frase. Ahora el atajo exige haberle escuchado.
 - La prueba de navegador buscaba un botón «Volver a caminar» que ya no existe; el botón se llama «Volver a ver la historia».
+
+### Los invitados, en alta
+
+Los seis seguían viéndose borrosos al lado de los protagonistas, y la causa era de resolución, no de filtros: sus recortes del atlas miden 15-20 x 42 px y había que **ampliarlos** para llegar a los 50 de alto, mientras que Génesis sale de 169 x 319 px y se **reduce**. Una diferencia de unas ocho veces: no hay filtro que invente esos píxeles.
+
+El único arte en alta del repositorio son las hojas de los protagonistas, así que los invitados se construyen ahora desde ahí —tres desde la de ella, tres desde la de él— y se recolorean al cargar, guardando el resultado en caché.
+
+Para que seis copias del mismo cuerpo no parezcan la misma persona hicieron falta tres cosas, y la segunda no era evidente:
+
+1. **El pelo** se aclara u oscurece con un término que suma, no sólo multiplica: multiplicando, un castaño oscuro nunca llega a rubio.
+2. **La ropa neutra hay que teñirla, no girarla.** Los protagonistas visten blanco y gris, con saturación casi cero, y a eso girarle el tono no le hace nada: por eso el primer intento dejó a los seis vestidos igual. Ahora lo que ya tiene color se gira y lo neutro recibe un tono propio.
+3. **La estatura**, que a este tamaño es lo que más distingue a una persona de otra.
+
+Dos trampas por el camino, las dos corregidas: un `hue-rotate` sobre el recorte entero gira también la piel y deja las caras verdes; y subirle la claridad al pelo sin tope revienta a blanco los brillos de la cara, porque no todo lo claro de la cabeza es pelo.
