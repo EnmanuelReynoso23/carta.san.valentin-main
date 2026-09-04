@@ -84,6 +84,8 @@ function resetWorld(){
   state.guideSolid=false;
   state.guideAct=-1;
   state.dawnGuideInit=false;
+  state.homecoming=false;
+  state.homecomingTriggered=false;
   state.carried=[];
   state.particles=[];
   state.flame=false;
@@ -408,14 +410,31 @@ function applyFrame(frame,dt){
     state.flame=false;
   }
 
+  const isHomecoming = scene.kind === 'dawn' && (
+    player.x >= 790 ||
+    Boolean(frame.line?.text && (
+      frame.line.text.includes('abrir la puerta') ||
+      frame.line.text.includes('bizcocho') ||
+      frame.line.text.includes('Esta carta')
+    ))
+  );
+  state.homecoming = isHomecoming;
+  if(isHomecoming && !state.homecomingTriggered){
+    state.homecomingTriggered = true;
+    sparkle(240, 135, '#ffd58a', 45);
+    sparkle(240, 135, '#ffffff', 30);
+    sparkle(240, 135, '#ef829a', 25);
+    music.tone(74, 0.6, 0.15, 'sine');
+  }
+
   state.dawn=lerp(DAWN[frame.act],DAWN[Math.min(frame.act+1,DAWN.length-1)],inside);
   state.pulse=music.pulse();
   const portrait=innerHeight>innerWidth;
   const anchor=portrait?.5:.42;
   const minimum=portrait?-W*.35:0;
   const maximum=Math.max(minimum,scene.width-(portrait?W*.65:W));
-  const target=clamp(player.x-W*anchor,minimum,maximum);
-  state.camera=state.camera===0&&frame.index===0?target:lerp(state.camera,target,1-Math.exp(-dt*4.2));
+  const target=isHomecoming?0:clamp(player.x-W*anchor,minimum,maximum);
+  state.camera=isHomecoming?0:(state.camera===0&&frame.index===0?target:lerp(state.camera,target,1-Math.exp(-dt*4.2)));
 }
 
 function update(dt){

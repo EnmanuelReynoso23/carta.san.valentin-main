@@ -466,6 +466,105 @@ export class Renderer{
     this.door(670-cam, doorOpen);
   }
 
+  homecoming(state){
+    const g=this.g;
+    // Fondo de la habitación con ambiente cálido, dorado y festivo
+    this.r(0,0,W,GROUND,'#5f4559');
+    for(let x=0;x<W;x+=58){
+      this.r(x,0,2,GROUND,'#93677938');
+      this.r(x+6,92,46,1,'#996e7e38');
+    }
+    this.r(0,16,W,7,'#b88a8d');
+    this.r(0,206,W,18,'#9f727c');
+    this.r(0,209,W,2,'#dcab98');
+
+    // Guirnaldas festivas y luces alegres en el techo
+    this.sp('guirnalda',90,46,26,.95);
+    this.sp('guirnalda',240,46,26,.95);
+    this.sp('guirnalda',390,46,26,.95);
+    for(let x=15;x<W;x+=35){
+      const gy=34+Math.sin(x*.06)*6;
+      this.r(x,gy,3,3,'#fff1d0');
+      this.glow(x,gy,15,'#ffd58a',.25);
+    }
+
+    // Ventana con los rayos dorados del amanecer entrando
+    this.window(24,56);
+    this.glow(50,80,60,'#ffd58a',.38);
+
+    // Cuadro con corazón dorado en la pared
+    this.r(410,74,38,50,'#c09582');
+    this.r(413,77,32,44,'#4d355d');
+    this.sp('corazon',429,112,22);
+    this.glow(429,100,24,'#ef829a',.45);
+
+    // Puerta abierta al fondo con luz resplandeciente del nuevo día
+    this.door(455,true);
+
+    // La gran mesa de fiesta: ¡Todos reunidos comiendo del bizcocho de cumpleaños!
+    const table=270;
+    this.r(table-74,190,148,8,'#c6977f');
+    this.r(table-74,198,148,3,'#a57a6c');
+    this.r(table-62,201,7,23,'#7a5567');
+    this.r(table+55,201,7,23,'#7a5567');
+
+    // El bizcocho de cumpleaños en el centro con velas y porciones
+    this.cake(table,190,true);
+    this.glow(table,152,32,'#ffd58a',.5);
+
+    // Los 6 amigos sentados alrededor de la mesa comiendo bizcocho
+    // 3 a la izquierda (Simón, Nora, Lía) y 3 a la derecha (Mateo, Abril, Joel)
+    const guests=[
+      {x:table-66,dir:1,sprite:0,name:'Simón',color:'#62df7d'},
+      {x:table-44,dir:1,sprite:4,name:'Nora',color:'#ffd84a'},
+      {x:table-22,dir:1,sprite:8,name:'Lía',color:'#ff9a45'},
+      {x:table+22,dir:-1,sprite:12,name:'Mateo',color:'#b187ff'},
+      {x:table+44,dir:-1,sprite:16,name:'Abril',color:'#5f7dff'},
+      {x:table+66,dir:-1,sprite:20,name:'Joel',color:'#79e4ee'},
+    ];
+
+    for(const [idx,guest] of guests.entries()){
+      this.chair(guest.x,GROUND,guest.dir);
+      const reaction=!this.soft?Math.floor(positiveMod(this.t*2.2+idx,4)):0;
+      this.sp('sec'+String(guest.sprite+reaction).padStart(2,'0'),guest.x,GROUND+1,48,1,guest.dir);
+      // Plato con rebanada de bizcocho frente a cada uno en la mesa
+      const px=guest.x+guest.dir*10;
+      this.r(px-5,188,10,2,'#f0e0e3');
+      this.r(px-3,184,6,4,'#e8c79b');
+      this.r(px-3,183,6,1,'#fbe6ee');
+      // Corazoncito flotando de alegría sobre sus cabezas
+      const hy=GROUND-54-Math.sin(this.t*2.6+idx)*3;
+      this.glow(guest.x,hy,12,guest.color,.42);
+      this.sp('corazon',guest.x,hy,11,.9);
+    }
+
+    // Enmanuel y Génesis juntos al lado de la mesa
+    const gX=120;
+    const eX=65;
+
+    // Enmanuel entregando la carta sellada a Génesis
+    this.actor('enmanuel',eX,GROUND,{walk:false,run:false,dir:1,phase:0});
+    this.actor('genesis',gX,GROUND,{walk:false,run:false,cheer:true,dir:-1,phase:0});
+
+    // La carta mágica flotando hacia las manos de Génesis con el alma de Determinación
+    const letterT=Math.min(1,(positiveMod(this.t*0.7,1.8)/1.2));
+    const lx=lerp(eX+15,gX-8,letterT);
+    const ly=GROUND-42-Math.sin(letterT*Math.PI)*10;
+    this.glow(lx,ly,26,'#ffd58a',.85);
+    this.glow(lx,ly,14,'#e74c3c',.8);
+    this.sp('sobre',lx,ly,19,1);
+    this.sp('corazon',lx,ly-7,12,1);
+
+    // Chispas doradas festivas flotando en el ambiente
+    if(!this.soft){
+      for(let i=0;i<16;i++){
+        const cx=positiveMod(i*31+this.t*18,W);
+        const cy=positiveMod(i*23+this.t*25,GROUND-15);
+        this.r(cx,cy,2,2,i%2?'#ffd58a':'#ffffff');
+      }
+    }
+  }
+
   alley(scene,cam,dawn){
     this.sky(dawn,cam);
     this.hills(cam,dawn);
@@ -698,6 +797,12 @@ export class Renderer{
     const lift=Math.round(clamp(state.lift||0,0,LIFT_MAX));
     g.save();
     g.translate(0,-lift);
+
+    if(state.homecoming){
+      this.homecoming(state);
+      g.restore();
+      return;
+    }
 
     if(scene.kind==='room')this.room(scene,camera,state);
     else if(scene.kind==='alley')this.alley(scene,camera,dawn);
