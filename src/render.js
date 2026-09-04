@@ -103,7 +103,6 @@ export class Renderer{
   actor(name,x,y,{walk=false,dir=1,phase=0,alpha=1,scale=1}={}){
     const frames=this.meta[name];
     if(!frames)return;
-    // La hoja original apoya correctamente los pies en este orden.
     const walkingFrame=[5,6,7,4][Math.floor(positiveMod(phase,4))];
     const idleFrame=positiveMod(this.t+name.length*.37,5.4)<.16?3:0;
     const frame=frames[walk?walkingFrame:idleFrame];
@@ -190,90 +189,188 @@ export class Renderer{
     g.lineTo(W,210);g.lineTo(0,210);g.fill();
   }
 
-  cityBackdrop(cam,dawn,groundY=205){
-    const names=['bg_ciudad0','bg_ciudad1','bg_ciudad2'];
-    for(let index=-1;index<5;index++){
-      const x=index*132-positiveMod(cam*.18,132)+65;
-      this.sp(names[positiveMod(index,3)],x,groundY,102,.72-dawn*.18);
+  skyline(cam,dawn){
+    for(let layer=0;layer<2;layer++){
+      const rng=seeded(912+layer*25);
+      let x=-150;
+      while(x<2400){
+        const width=24+rng()*45,height=27+rng()*75,sx=x-cam*(layer===0?.13:.28),y=176+layer*12;
+        this.r(sx,y-height,width,height,hexMix(layer?'#243f59':'#263852',layer?'#7c6f8e':'#94879f',dawn));
+        if(layer){
+          for(let wx=4;wx<width-3;wx+=8){
+            for(let wy=6;wy<height-7;wy+=12){
+              if(rng()>.4)this.r(sx+wx,y-height+wy,2,3,rng()>.5?'#cbab87':'#7a91a2');
+            }
+          }
+        }
+        this.r(sx+5,y-height-4,width-10,4,hexMix('#2c415a','#7f7192',dawn));
+        x+=width+5;
+      }
     }
   }
 
-  buildingRow(scene,cam,names,spacing=118,height=93,offset=20){
-    for(let index=0,x=offset;x<scene.width+180;index++,x+=spacing){
-      const name=names[index%names.length];
-      this.sp(name,x-cam*.72,GROUND+1,height+(index%3)*5,.96);
+  cityBuildings(scene,cam,dawn){
+    const rng=seeded(scene.kind==='dawn'?33:41);
+    for(let x=-120;x<scene.width+200;x+=112){
+      const height=62+rng()*42,sx=x-cam*.72;
+      this.r(sx,204-height,84,height,['#5c536b','#46566d','#625970'][Math.floor(rng()*3)]);
+      this.r(sx-4,197-height,92,7,'#262c46');
+      for(let row=0;row<Math.floor((height-14)/28);row++){
+        for(let col=0;col<3;col++){
+          const wx=sx+10+col*24,wy=204-height+15+row*28,lit=rng()>.35;
+          this.r(wx-2,wy-2,16,20,'#303851');
+          this.r(wx,wy,12,15,lit?'#d3ac82':'#45566e');
+          this.r(wx+5,wy,2,15,'#7c6e78');
+          this.r(wx,wy+7,12,2,'#7c6e78');
+          if(lit)this.glow(wx+6,wy+7,15,'#eac18d',.08);
+        }
+      }
     }
   }
 
   ground(scene,cam,dawn){
     const garden=scene.kind==='garden';
     const room=scene.kind==='room';
-    const color=room?'#604458':garden?'#294a45':hexMix('#35455e','#aa8177',dawn);
+    const color=room?'#5e4455':garden?'#2b4a48':hexMix('#3b4861','#b3907f',dawn);
     this.r(0,GROUND,W,H-GROUND+LIFT_MAX,color);
-    this.r(0,GROUND,W,2,room?'#b88690':garden?'#79a38b':hexMix('#9ba3b0','#efbea0',dawn));
-    this.r(0,GROUND+3,W,5,room?'#745163':garden?'#3d685d':hexMix('#5c687d','#9d7580',dawn));
+    this.r(0,GROUND,W,2,room?'#8f6c74':garden?'#81a592':hexMix('#a5a0a5','#eec6a6',dawn));
+    this.r(0,GROUND+3,W,5,room?'#6d4f5f':garden?'#3f6b63':hexMix('#626c80','#997b8c',dawn));
     if(room){
-      for(let x=-positiveMod(cam,44);x<W;x+=44)this.r(x,GROUND+8,1,H-GROUND,'#4a3446');
+      for(let x=-positiveMod(cam,44);x<W;x+=44)this.r(x,GROUND+8,1,H-GROUND,'#4a3646');
     }else{
-      for(let index=0;index<48;index++){
+      for(let index=0;index<44;index++){
         const x=positiveMod(index*61.3-cam,scene.width);
-        this.r(x,GROUND+9+(index%4)*7,2+(index%3),1,garden?'#64947c':hexMix('#87909f','#c49a88',dawn));
+        this.r(x,GROUND+9+(index%4)*7,2+(index%3),1,garden?'#659680':hexMix('#8f8b98','#c9a58f',dawn));
       }
     }
   }
 
-  chair(x,y,cam){
-    const sx=x-cam;
-    this.r(sx-8,y-25,16,3,'#8a5c55');
-    this.r(sx-8,y-22,3,16,'#65434b');
-    this.r(sx+5,y-22,3,16,'#65434b');
-    this.r(sx-7,y-9,14,4,'#a67568');
-    this.r(sx-6,y-5,3,9,'#513747');
-    this.r(sx+3,y-5,3,9,'#513747');
+  window(x,y){
+    const w=132,h=104,g=this.g;
+    this.r(x-8,y-8,w+16,h+16,'#c39a95');
+    this.r(x-4,y-4,w+8,h+8,'#a97f81');
+    this.r(x,y,w,h,'#142642');
+    this.r(x+3,y+3,w-6,h-6,'#28405f');
+    for(let i=0;i<7;i++)this.r(x+9+i*18,y+h-14-((i*11)%34),9,((i*11)%34)+12,'#33507a');
+    for(let i=0;i<9;i++)this.r(x+12+i*14,y+h-26-((i*7)%22),3,4,'#e8c48f');
+    this.glow(x+w-30,y+26,26,'#dfe6d8',.35);
+    g.fillStyle='#e8e2c8';g.beginPath();g.arc(x+w-30,y+26,7,0,Math.PI*2);g.fill();
+    g.fillStyle='#2b4468';g.beginPath();g.arc(x+w-34,y+23,6,0,Math.PI*2);g.fill();
+    this.r(x+w/2-3,y,6,h,'#c8a09a');this.r(x,y+h/2-3,w,6,'#c8a09a');
+    this.r(x-14,y+h,w+28,7,'#d7ada0');this.r(x-14,y+h+7,w+28,3,'#a97f81');
+    for(const side of [-1,1]){
+      const cx=side<0?x-26:x+w+8;
+      this.r(cx,y-10,18,h+16,'#8d6690');
+      for(let i=0;i<4;i++)this.r(cx+2+i*4,y-6,2,h+8,'#a97fab');
+    }
+    this.r(x-34,y-16,w+68,7,'#b58f8f');
+    this.glow(x+w/2,y+h/2,90,'#8fb8d8',.09);
   }
 
-  room(scene,cam){
-    this.r(0,0,W,GROUND,'#513a50');
-    this.r(0,18,W,8,'#a6747e');
-    this.r(0,205,W,19,'#91636f');
+  chair(x,y,facing=1,tone='#8a6272'){
+    this.r(x-9,y-16,18,3,tone);
+    this.r(x-8,y-14,16,2,'#6d4b5c');
+    this.r(x-8,y-13,3,13,'#6d4b5c');this.r(x+5,y-13,3,13,'#6d4b5c');
+    const back=facing>0?x+7:x-10;
+    this.r(back,y-34,3,20,tone);
+    this.r(back-facing*13,y-34,15,3,tone);
+    this.r(back-facing*13,y-28,15,2,tone);
+  }
+
+  cake(x,base,lit){
+    this.r(x-23,base-2,46,3,'#e3d3d6');this.r(x-20,base+1,40,2,'#ab8d94');
+    this.r(x-18,base-15,36,13,'#e8c79b');this.r(x-18,base-15,36,3,'#d2a97c');
+    this.r(x-18,base-19,36,5,'#fbe6ee');
+    for(let i=0;i<6;i++)this.r(x-16+i*6,base-14,3,2+((i*7)%4),'#fbe6ee');
+    for(let i=0;i<5;i++)this.r(x-14+i*7,base-11,2,2,'#e08aa0');
+    this.r(x-12,base-30,24,11,'#e8c79b');this.r(x-12,base-30,24,3,'#d2a97c');
+    this.r(x-12,base-33,24,4,'#fbe6ee');
+    for(let i=0;i<4;i++)this.r(x-10+i*6,base-29,3,2+((i*5)%3),'#fbe6ee');
+    this.r(x-8,base-36,3,3,'#e8687f');this.r(x+5,base-36,3,3,'#e8687f');
+    this.r(x-9,base-25,2,2,'#e08aa0');this.r(x+7,base-25,2,2,'#e08aa0');
+    this.r(x-1,base-43,3,10,'#f8f0f4');
+    this.r(x-1,base-40,3,2,'#e0899f');this.r(x-1,base-36,3,2,'#e0899f');
+    if(lit){
+      this.glow(x,base-45,15,'#ffce8a',.45);
+      this.r(x,base-46,1,4,'#ffe9bb');this.r(x-1,base-45,3,2,'#ffbf72');
+    }
+  }
+
+  door(x,open){
+    this.r(x-17,GROUND-64,34,64,'#7a5a63');
+    this.r(x-14,GROUND-60,28,60,open?'#1b2743':'#8e6a6d');
+    if(open){
+      for(let i=0;i<5;i++)this.r(x-12+i*6,GROUND-56+((i*7)%20),3,10,'#2c4670');
+      this.glow(x,GROUND-32,44,'#ffd9a0',.30);
+      this.r(x-14,GROUND-60,28,2,'#f0c58e');
+    }else{
+      this.r(x-11,GROUND-56,22,24,'#7d5b60');this.r(x-11,GROUND-28,22,24,'#7d5b60');
+      this.r(x+7,GROUND-34,3,3,'#e8c48f');
+    }
+    this.r(x-19,GROUND-68,38,5,'#9a747a');
+  }
+
+  room(scene,cam,state){
+    this.r(0,0,W,GROUND,'#5b4358');
     for(let x=-positiveMod(cam,58)-58;x<W;x+=58){
-      this.r(x,0,2,GROUND,'#8b647025');
-      this.r(x+7,91,44,1,'#c18c9130');
+      this.r(x,0,2,GROUND,'#8b647030');
+      this.r(x+6,92,46,1,'#92697538');
+    }
+    this.r(0,16,W,7,'#b08789');
+    this.r(0,206,W,18,'#996f77');
+    this.r(0,209,W,2,'#d7ac9a');
+    for(let x=10;x<scene.width;x+=34){
+      const gx=x-cam,gy=34+Math.sin(x*.02)*7;
+      this.r(gx,gy,2,2,'#e7c79c');
+      this.glow(gx,gy,13,'#ffce95',.16);
     }
 
-    this.sp('bg_cuarto',108-cam,GROUND,194,1);
-    this.sp('bg_sala',332-cam,GROUND,194,.96);
+    // Cama de Génesis
+    const bed=40-cam;
+    this.r(bed,182,116,42,'#6a4459');
+    this.r(bed-5,160,9,64,'#93707c');
+    this.r(bed,183,116,19,'#b6849a');
+    this.r(bed+9,176,32,13,'#ead0c4');
+    this.r(bed+47,190,62,15,'#8d769c');
 
-    this.chair(480,200,cam);
-    this.chair(540,200,cam);
-    this.chair(450,214,cam);
-    this.chair(570,214,cam);
+    // Ventana con vista a la noche de la ciudad
+    this.window(168-cam,58);
 
-    const table=510-cam;
-    this.r(table-57,190,114,7,'#c99a81');
-    this.r(table-53,197,106,3,'#9a6d63');
-    this.r(table-47,200,6,24,'#70495b');
-    this.r(table+41,200,6,24,'#70495b');
-    this.sp('pastel',table,190,34);
-    this.sp('regalo',table-42,190,23);
-    this.sp('foto',table+40,190,20);
-    this.chair(480,224,cam);
-    this.chair(540,224,cam);
-    this.sp('maceta',682-cam,GROUND,45);
+    // Cuadro con corazón en la pared
+    this.r(310-cam,74,38,50,'#c09582');
+    this.r(313-cam,77,32,44,'#39405f');
+    this.sp('corazon',329-cam,112,22);
 
-    for(let index=0;index<5;index++){
-      const x=438+index*33-cam,y=43+Math.sin(index*1.7)*7;
-      this.line([[x,y],[x+33,y+Math.sin((index+1)*1.7)*7]],'#6e4b61',1);
-      this.r(x,y,2,2,'#ffd99a');
-      this.glow(x,y,13,'#ffce95',.15);
-    }
+    // La mesa del cumpleaños, con las 6 sillas preparadas para los invitados
+    const table=480-cam;
+    this.chair(table-74,GROUND,1);
+    this.chair(table-44,GROUND,1,'#7d5f7e');
+    this.chair(table-20,GROUND,1,'#8a6272');
+    this.chair(table+24,GROUND,-1,'#8a6272');
+    this.chair(table+52,GROUND,-1,'#7d5f7e');
+    this.chair(table+82,GROUND,-1);
+
+    this.r(table-52,190,104,7,'#c6977f');
+    this.r(table-52,197,104,3,'#a57a6c');
+    this.r(table-44,200,6,24,'#7a5567');
+    this.r(table+38,200,6,24,'#7a5567');
+
+    const candleLit = !state?.flame || state.flameX <= table;
+    this.cake(table,190,candleLit);
+    this.sp('regalo',table-36,190,22);
+    this.sp('foto',table+34,190,20);
+    this.sp('maceta',580-cam,GROUND,44);
+
+    // Puerta de salida hacia la calle
+    const doorOpen = (state?.player?.x||0) > 400 || Boolean(state?.flame && state.flameX > 510);
+    this.door(670-cam, doorOpen);
   }
 
   alley(scene,cam,dawn){
     this.sky(dawn,cam);
     this.hills(cam,dawn);
-    this.cityBackdrop(cam,dawn,199);
-    this.buildingRow(scene,cam,['edif00','edif02','edif03','edif07','edif09'],132,91,-25);
+    this.skyline(cam,dawn);
+    this.cityBuildings(scene,cam,dawn);
     this.ground(scene,cam,dawn);
 
     for(let x=95;x<scene.width;x+=190){
@@ -298,8 +395,8 @@ export class Renderer{
   street(scene,cam,dawn){
     this.sky(dawn,cam);
     this.hills(cam,dawn);
-    this.cityBackdrop(cam,dawn,196);
-    this.buildingRow(scene,cam,['edif04','edif05','edif06','edif08','edif10','edif11'],119,92,-30);
+    this.skyline(cam,dawn);
+    this.cityBuildings(scene,cam,dawn);
     this.ground(scene,cam,dawn);
 
     for(let x=180;x<scene.width;x+=245){
@@ -322,7 +419,7 @@ export class Renderer{
   garden(scene,cam,dawn){
     this.sky(dawn,cam);
     this.hills(cam,dawn);
-    this.cityBackdrop(cam,dawn,201);
+    this.skyline(cam,dawn);
     for(let index=0;index<18;index++){
       const x=index*112-cam*.63;
       this.sp(index%3?'arbol':'palmera',x,GROUND+1,index%3?104:118,.88);
@@ -333,7 +430,6 @@ export class Renderer{
       this.sp('arbusto',x,GROUND+3,28,.94);
       if(index%3===0)this.sp('rosa',x+11,GROUND+1,15,.9);
     }
-    this.sp('edif09',690-cam*.8,GROUND+1,96,.9);
     this.sp('banco',1120-cam,GROUND+1,24);
     if(!this.soft)for(let index=0;index<14;index++){
       const x=positiveMod(index*97+Math.sin(this.t*.7+index)*18-cam*.45,W+80)-40;
@@ -346,7 +442,7 @@ export class Renderer{
   bridge(scene,cam,dawn){
     this.sky(dawn,cam);
     this.hills(cam,dawn);
-    this.cityBackdrop(cam,dawn,194);
+    this.skyline(cam,dawn);
 
     const water=GROUND-4;
     this.r(0,water,W,H-water+LIFT_MAX,hexMix('#122c4b','#8d6c80',dawn));
@@ -387,9 +483,8 @@ export class Renderer{
   plaza(scene,cam,dawn){
     this.sky(dawn,cam);
     this.hills(cam,dawn);
-    this.cityBackdrop(cam,dawn,197);
-    this.sp('edif08',118-cam*.72,GROUND+1,101,.95);
-    this.sp('edif10',1340-cam*.72,GROUND+1,99,.95);
+    this.skyline(cam,dawn);
+    this.cityBuildings(scene,cam,dawn);
     this.ground(scene,cam,dawn);
     for(let x=-positiveMod(cam,48);x<W;x+=48){
       this.line([[x,GROUND+2],[x+18,H+LIFT_MAX]],'#705f715c',1);
@@ -418,7 +513,7 @@ export class Renderer{
   dawn(scene,cam,dawn){
     this.sky(dawn,cam);
     this.hills(cam,dawn);
-    this.cityBackdrop(cam,dawn,200);
+    this.skyline(cam,dawn);
     this.r(0,203,W,21,hexMix('#3d5067','#b48a80',dawn));
     for(let index=0;index<32;index++){
       const x=positiveMod(index*43-cam*.28,W+70)-35;
@@ -441,7 +536,7 @@ export class Renderer{
   coverScene(state){
     this.sky(.12,0);
     this.hills(0,.12);
-    this.cityBackdrop(0,.12,204);
+    this.skyline(0,.12);
     this.r(0,220,W,50,'#17243c');
     this.r(0,220,W,2,'#697b91');
     for(let index=0;index<7;index++){
@@ -499,7 +594,7 @@ export class Renderer{
     g.save();
     g.translate(0,-lift);
 
-    if(scene.kind==='room')this.room(scene,camera);
+    if(scene.kind==='room')this.room(scene,camera,state);
     else if(scene.kind==='alley')this.alley(scene,camera,dawn);
     else if(scene.kind==='street')this.street(scene,camera,dawn);
     else if(scene.kind==='garden')this.garden(scene,camera,dawn);
