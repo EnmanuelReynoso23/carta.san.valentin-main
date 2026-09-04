@@ -390,6 +390,23 @@ function applyFrame(frame,dt){
     }
   }
 
+  const isHomecoming = scene.kind === 'dawn' && (
+    player.x >= 790 ||
+    Boolean(frame.line?.text && (
+      frame.line.text.includes('abrir la puerta') ||
+      frame.line.text.includes('bizcocho') ||
+      frame.line.text.includes('Esta carta')
+    ))
+  );
+  state.homecoming = isHomecoming;
+  if(isHomecoming && !state.homecomingTriggered){
+    state.homecomingTriggered = true;
+    sparkle(240, 135, '#ffd58a', 45);
+    sparkle(240, 135, '#ffffff', 30);
+    sparkle(240, 135, '#ef829a', 25);
+    music.tone(74, 0.6, 0.15, 'sine');
+  }
+
   if(scene.kind==='room'){
     const release=clamp((inside-.76)/.22,0,1);
     state.candleLit = release === 0;
@@ -410,23 +427,6 @@ function applyFrame(frame,dt){
     state.flameY = GROUND - 72 + Math.sin(state.time * 2.3) * 5;
   }else{
     state.flame=false;
-  }
-
-  const isHomecoming = scene.kind === 'dawn' && (
-    player.x >= 790 ||
-    Boolean(frame.line?.text && (
-      frame.line.text.includes('abrir la puerta') ||
-      frame.line.text.includes('bizcocho') ||
-      frame.line.text.includes('Esta carta')
-    ))
-  );
-  state.homecoming = isHomecoming;
-  if(isHomecoming && !state.homecomingTriggered){
-    state.homecomingTriggered = true;
-    sparkle(240, 135, '#ffd58a', 45);
-    sparkle(240, 135, '#ffffff', 30);
-    sparkle(240, 135, '#ef829a', 25);
-    music.tone(74, 0.6, 0.15, 'sine');
   }
 
   state.dawn=lerp(DAWN[frame.act],DAWN[Math.min(frame.act+1,DAWN.length-1)],inside);
@@ -529,7 +529,6 @@ addEventListener('keydown',event=>{
     start();
   }
 });
-addEventListener('blur',()=>{if(state.mode==='story')pause();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
 document.addEventListener('fullscreenchange',()=>{
   const active=!!document.fullscreenElement;
