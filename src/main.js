@@ -402,10 +402,12 @@ function applyFrame(frame,dt){
       sparkle(480, 140, '#ffffff', 20);
       sparkle(480, 144, '#ff9933', 18);
     }
-  }else if(scene.kind!=='dawn'){
+  }else if(!isHomecoming){
+    // Enmanuel corre adelante pero deja la estrella de luz acompañando a Génesis como su guía
     state.flame=true;
-    state.flameX=(state.guide?.x||player.x+58);
-    state.flameY=GROUND-76+Math.sin(state.time*1.9)*5;
+    const starLead = (player.dir || 1) * 38;
+    state.flameX = player.x + starLead;
+    state.flameY = GROUND - 72 + Math.sin(state.time * 2.3) * 5;
   }else{
     state.flame=false;
   }
