@@ -1,4 +1,4 @@
-import {clamp} from './timeline.js';
+import {clamp, lerp, smooth} from './timeline.js';
 
 export const W=480;
 export const H=270;
