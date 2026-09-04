@@ -82,21 +82,34 @@ export class Renderer{
     g.restore();
   }
 
-  sp(name,x,y,height,alpha=1){
+  sp(name,x,y,height,alpha=1,dir=1){
     const frame=this.atlas[name];
     if(!frame)return;
     const scale=height/frame[3];
     const g=this.g;
     g.save();
     g.globalAlpha=alpha;
-    g.drawImage(
-      this.images.atlas,
-      ...frame,
-      Math.round(x-frame[2]*scale/2),
-      Math.round(y-height),
-      Math.round(frame[2]*scale),
-      Math.round(height),
-    );
+    if(dir===-1){
+      g.translate(Math.round(x),0);
+      g.scale(-1,1);
+      g.drawImage(
+        this.images.atlas,
+        ...frame,
+        Math.round(-frame[2]*scale/2),
+        Math.round(y-height),
+        Math.round(frame[2]*scale),
+        Math.round(height),
+      );
+    }else{
+      g.drawImage(
+        this.images.atlas,
+        ...frame,
+        Math.round(x-frame[2]*scale/2),
+        Math.round(y-height),
+        Math.round(frame[2]*scale),
+        Math.round(height),
+      );
+    }
     g.restore();
   }
 
@@ -699,8 +712,38 @@ export class Renderer{
       const colour=person.received?.color||'#ffd39a';
       if(person.lit)this.glow(x,GROUND-27,45,colour,.5+this.pulse*.1);
       const reaction=person.lit&&!this.soft?Math.floor(positiveMod(this.t*2.2+index,4)):0;
-      this.sp('sec'+String(person.sprite+reaction).padStart(2,'0'),x,GROUND+1,52,person.lit?1:.66);
-      if(person.lit)this.light(x+15,GROUND-47,colour,.65,.45);
+      // Personaje secundario mirando de frente hacia Génesis (hacia la izquierda, dir = -1)
+      this.sp('sec'+String(person.sprite+reaction).padStart(2,'0'),x,GROUND+1,52,person.lit?1:.72,-1);
+      if(person.lit){
+        this.light(x-8,GROUND-47,colour,.65,.45);
+        // ¡El personaje sostiene visiblemente el regalo en sus manos!
+        this.glow(x-10,GROUND-20,18,colour,.6);
+        this.sp('regalo',x-10,GROUND-14,18,1);
+        // Corazón o destello de gratitud flotando sobre su cabeza
+        const heartY=GROUND-58-Math.sin(this.t*2.6+index)*4;
+        this.glow(x,heartY,14,colour,.5);
+        this.sp('corazon',x,heartY,13,.9);
+      }
+    }
+
+    // Animación del regalo volando en arco luminoso desde Génesis hacia el personaje
+    for(const gift of state.giftTransfers||[]){
+      const elapsed=this.t-gift.time;
+      const p=clamp(elapsed/(gift.duration||0.95),0,1);
+      if(p<1){
+        const gx=lerp(gift.fromX,gift.toX,p)-camera;
+        const gy=lerp(gift.fromY,gift.toY,p)-Math.sin(p*Math.PI)*28;
+        this.glow(gx,gy,24,gift.color,.8);
+        this.glow(gx,gy,10,'#ffffff',.85);
+        this.sp('regalo',gx,gy,19,1);
+        if(!this.soft){
+          for(let i=0;i<3;i++){
+            const sx=gx-(i+1)*3+Math.sin(this.t*12+i)*2;
+            const sy=gy+Math.cos(this.t*12+i)*2;
+            this.r(sx,sy,2,2,i%2?'#ffffff':gift.color);
+          }
+        }
+      }
     }
 
     for(const item of (scene.kind==='garden'?state.lights||[]:[])){
@@ -739,7 +782,27 @@ export class Renderer{
       this.glow(x,GROUND-30,55,'#ffd7a0',.25);
       this.r(x-9,GROUND+1,19,2,'#1a253866');
       this.actor('enmanuel',x,GROUND,{walk:false,run:false,dir:state.guide.dir||-1,phase:0});
-      this.sp('sobre',x-15,GROUND-51,19);
+
+      // Animación de la entrega de la carta de Enmanuel a Génesis
+      if(state.letterTransfer){
+        const p=clamp((this.t-state.letterTransfer.time)/state.letterTransfer.duration,0,1);
+        if(p<1){
+          const lx=lerp(state.letterTransfer.fromX,state.letterTransfer.toX,p)-camera;
+          const ly=lerp(state.letterTransfer.fromY,state.letterTransfer.toY,p)-Math.sin(p*Math.PI)*24;
+          this.glow(lx,ly,26,'#ffd58a',.85);
+          this.glow(lx,ly,14,'#e74c3c',.75);
+          this.sp('sobre',lx,ly,19,1);
+          this.sp('corazon',lx,ly-7,12,.95);
+        }else{
+          // Génesis sostiene la carta sellada en sus manos
+          const gx=state.player.x-camera;
+          this.glow(gx+14,GROUND-42,20,'#ffd58a',.8);
+          this.sp('sobre',gx+14,GROUND-42,19,1);
+          this.sp('corazon',gx+14,GROUND-50,11,.95);
+        }
+      }else{
+        this.sp('sobre',x-15,GROUND-51,19);
+      }
     }
 
     const player=state.player;

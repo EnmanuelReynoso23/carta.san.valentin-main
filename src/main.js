@@ -87,6 +87,8 @@ function resetWorld(){
   state.flame=false;
   state.candleLit=true;
   state.blowTriggered=false;
+  state.giftTransfers=[];
+  state.letterTransfer=null;
   state.noteUntil=0;
   state.lights=(ACTS.find(act=>act.lights)?.lights||[]).map((x,index)=>({
     x,
@@ -291,7 +293,7 @@ function applyFrame(frame,dt){
     state.guide.x=lerp(state.guide.x,targetX,1-Math.exp(-dt*3.8));
     state.guideSolid=false;
   }else if(scene.kind==='dawn'&&player.x>=300){
-    state.guide={x:790,dir:-1,phase:0};
+    state.guide={x:740,dir:-1,phase:0};
     state.guideSolid=true;
   }else{
     state.guide=null;
@@ -310,15 +312,43 @@ function applyFrame(frame,dt){
   }
 
   for(const person of state.people){
-    // El don se entrega al marcharse: primero Génesis escucha a la persona.
-    if(person.lit||scene.kind!=='plaza'||player.x<=person.x+8||!state.carried.length)continue;
+    // Se entrega el regalo al despedirse o responder: primero Génesis escucha al amigo al lado de él
+    const shouldGive = player.x > person.x - 36 || (person.name === 'Joel' && (frame.line?.speaker === 'Génesis' || player.x >= 1530 && frame.line?.speaker !== 'Joel'));
+    if(person.lit||scene.kind!=='plaza'||!shouldGive||!state.carried.length)continue;
     person.lit=true;
     const given=state.carried.shift();
     person.received=given;
     refreshVirtues();
-    sparkle(person.x,GROUND-32,given.color,24);
+    state.giftTransfers.push({
+      fromX: player.x + 16,
+      fromY: GROUND - 44,
+      toX: person.x - 12,
+      toY: GROUND - 24,
+      color: given.color,
+      name: given.name,
+      time: state.time,
+      duration: 0.95,
+    });
+    state.cheerUntil=state.time+1.4;
+    sparkle(person.x,GROUND-32,given.color,30);
+    sparkle(person.x,GROUND-24,'#ffffff',18);
     music.tone(76+state.people.filter(item=>item.lit).length*2,.55,.1,'triangle');
     announce(`Entregaste el don de la ${given.name} a ${person.name}.`);
+  }
+
+  if(scene.kind==='dawn'){
+    if(frame.line?.speaker==='Enmanuel' && frame.line?.text.includes('Esta carta') && !state.letterTransfer){
+      state.letterTransfer = {
+        fromX: 740 - 15,
+        fromY: GROUND - 48,
+        toX: player.x + 14,
+        toY: GROUND - 44,
+        time: state.time,
+        duration: 1.2,
+      };
+      sparkle(player.x + 14, GROUND - 44, '#ffd58a', 25);
+      sparkle(player.x + 14, GROUND - 44, '#e74c3c', 20);
+    }
   }
 
   if(scene.kind==='room'){
