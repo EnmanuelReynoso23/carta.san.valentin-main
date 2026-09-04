@@ -1,13 +1,15 @@
 // La historia se cuenta sola. Aquí se convierte el guion en una línea de tiempo
 // normalizada: cada paso ocupa una fracción del total y el total es la canción.
-export const SONG_SECONDS=191.8;
+export const SONG_SECONDS=192;
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const lerp=(a,b,t)=>a+(b-a)*t;
 export const smooth=t=>t*t*(3-2*t);
 
 export function stepWeight(step){
-  if(step.kind==='say')return 1.15+step.text.length/42;
-  if(step.kind==='walk')return Math.max(.12,step.distance/95);
+  // El texto recibe la mayor parte de los 192 segundos. La distancia de los
+  // recorridos conserva caminatas visibles sin obligar a leer deprisa.
+  if(step.kind==='say')return 2+step.text.length/28;
+  if(step.kind==='walk')return Math.max(.12,step.distance/150);
   return Math.max(.12,step.hold||1);
 }
 
@@ -19,7 +21,9 @@ export function buildTimeline(acts,{transition=1.1}={}){
       if(raw.kind==='walk'){steps.push({...raw,act:index,from:x,distance:Math.abs(raw.to-x)});x=raw.to;}
       else steps.push({...raw,act:index,at:x});
     }
-    if(index<acts.length-1)steps.push({kind:'transition',act:index,at:x,hold:transition});
+    if(index<acts.length-1)steps.push({
+      kind:'transition',act:index,nextAct:index+1,at:x,nextAt:acts[index+1].spawn,hold:transition,
+    });
   });
   const total=steps.reduce((sum,step)=>sum+(step.weight=stepWeight(step)),0);
   let acc=0;
@@ -41,13 +45,15 @@ export function frameAt(timeline,p){
   const index=stepAt(timeline,clamp(p,0,1)),step=timeline[index];
   const span=Math.max(1e-9,step.end-step.start);
   const local=clamp((clamp(p,0,1)-step.start)/span,0,1);
-  const x=step.kind==='walk'?lerp(step.from,step.to,smooth(local)):step.at;
+  const transitionAfterCut=step.kind==='transition'&&local>=.5;
+  const x=step.kind==='walk'?lerp(step.from,step.to,smooth(local)):
+    transitionAfterCut?step.nextAt:step.at;
   const walking=step.kind==='walk'&&step.distance>1&&local>0&&local<1;
-  return {index,step,local,x,walking,act:step.act,
+  return {index,step,local,x,walking,act:transitionAfterCut?step.nextAct:step.act,
     dir:step.kind==='walk'?Math.sign(step.to-step.from)||1:0,
     line:step.kind==='say'?step:null,
-    // El texto se escribe en el primer 55 % del paso y se queda a la vista el resto.
-    reveal:step.kind==='say'?clamp(local/.55,0,1):0};
+    // Se escribe en el primer 22 % y queda completo la mayor parte del tiempo.
+    reveal:step.kind==='say'?clamp(local/.22,0,1):0};
 }
 
 /** Segundos de pantalla de cada paso para una canción de esta duración. */
