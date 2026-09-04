@@ -19,7 +19,7 @@ const input=new Input();
 const director=new Director();
 const game=new Game({storage:localStorage,emit:handle});
 game.state.reduced=settings.reduced??matchMedia('(prefers-reduced-motion: reduce)').matches;
-game.state.auto=false;
+game.state.auto=true;
 
 // ---- lo que pasa en el juego, contado en pantalla ---------------------------
 function handle(kind,data){
@@ -69,9 +69,11 @@ function lightsHud(){
  */
 function dialogueLift(){
   if(game.state.mode!=='play'||$('dialogue').hidden)return 0;
-  const stage=$('stage').getBoundingClientRect(),panel=$('dialogue').getBoundingClientRect();
-  if(!stage.height)return 0;
-  return clamp((stage.bottom-panel.top)/stage.height*H-(H-GROUND)+12,0,LIFT_MAX);
+  const c=canvasRect(),panel=$('dialogue').getBoundingClientRect();
+  if(!c.height)return 0;
+  // Cuánto del dibujo tapa el panel, contado en píxeles del propio dibujo.
+  const tapado=(c.top+c.height-panel.top)/c.scale;
+  return clamp(tapado-(H-GROUND)+12,0,LIFT_MAX);
 }
 function prompt(){
   const state=game.state,item=state.prompt;
@@ -82,16 +84,23 @@ function prompt(){
 }
 
 /**
- * De una x del mundo a la fracción del escenario donde cae. En el teléfono el
- * lienzo se recorta para llenar la pantalla, y esto lo tiene en cuenta.
+ * Dónde cae de verdad el dibujo dentro del lienzo. En pantalla ancha se recorta
+ * para llenarla; en vertical entra entero y queda centrado. Todo lo que se
+ * coloca sobre el escenario se mide contra esto, no contra la caja.
  */
-function worldToStage(x){
-  const stage=$('stage').getBoundingClientRect(),canvas=$('world').getBoundingClientRect();
-  if(!stage.width||!canvas.width)return clamp(x/W,.06,.94);
+function canvasRect(){
+  const r=$('world').getBoundingClientRect();
+  if(!r.width||!r.height)return {left:0,top:0,width:0,height:0,scale:1};
   const scale=getComputedStyle($('world')).objectFit==='cover'
-    ?Math.max(canvas.width/W,canvas.height/H):Math.min(canvas.width/W,canvas.height/H);
-  const left=canvas.left+(canvas.width-W*scale)/2-stage.left;
-  return clamp((left+x*scale)/stage.width,.06,.94);
+    ?Math.max(r.width/W,r.height/H):Math.min(r.width/W,r.height/H);
+  return {left:r.left+(r.width-W*scale)/2,top:r.top+(r.height-H*scale)/2,
+    width:W*scale,height:H*scale,scale};
+}
+/** De una x del mundo a la fracción del escenario donde cae. */
+function worldToStage(x){
+  const stage=$('stage').getBoundingClientRect(),c=canvasRect();
+  if(!stage.width||!c.width)return clamp(x/W,.06,.94);
+  return clamp((c.left-stage.left+x*c.scale)/stage.width,.06,.94);
 }
 
 // ---- el latido --------------------------------------------------------------
@@ -120,7 +129,13 @@ function frame(now){
 }
 
 // ---- entrar y salir del viaje ----------------------------------------------
+async function goFullscreen(){
+  if(document.fullscreenElement)return;
+  try{await document.documentElement.requestFullscreen({navigationUI:'hide'});
+    $('full').setAttribute('aria-pressed','true');}catch{}
+}
 function play(saved=null){
+  goFullscreen();
   game.begin(saved);
   lightsHud();
   $('cover').hidden=true;$('ending').hidden=true;$('pausePanel').hidden=true;
@@ -174,9 +189,11 @@ function saveSettings(){
 input.bind({buttons:[...document.querySelectorAll('#pad button')],onAny:()=>{
   if(game.state.auto&&game.state.mode==='play')setAuto(false);
 }});
-$('start').onclick=()=>play(null);
+// El botón principal arranca la historia automática; el de al lado es para
+// quien prefiera caminar por su cuenta.
+$('start').onclick=()=>{setAuto(true,{quiet:true});play(null);};
 $('continue').onclick=()=>play(game.loadSave());
-$('storyMode').onclick=()=>{setAuto(true,{quiet:true});play(null);};
+$('storyMode').onclick=()=>{setAuto(false,{quiet:true});play(null);};
 $('replay').onclick=()=>{game.clearSave();play(null);};
 $('look').onclick=()=>{$('ending').hidden=true;toast('Toca la pantalla para volver a la carta.');};
 $('stage').addEventListener('click',()=>{if(game.state.mode==='ending'&&$('ending').hidden)$('ending').hidden=false;});
@@ -199,10 +216,14 @@ $('sound').onclick=()=>{
   const muted=music.toggleMute();
   $('sound').setAttribute('aria-pressed',String(!muted));
   $('sound').setAttribute('aria-label',muted?'Activar música':'Silenciar música');
-  $('sound').textContent=muted?'♪̸':'♫';saveSettings();
+  $('sound').textContent=muted?'♪̸ Con sonido':'♫ Silenciar';saveSettings();
 };
 $('volume').oninput=event=>{music.setVolume(Number(event.target.value)/100);$('volumeValue').value=event.target.value+'%';saveSettings();};
 $('loadYoutube').onclick=()=>music.connectYoutube().catch(()=>{});
+$('chipToggle').onclick=()=>{
+  const open=$('chipBody').hidden;
+  $('chipBody').hidden=!open;$('chipToggle').setAttribute('aria-expanded',String(open));
+};
 addEventListener('keydown',event=>{
   if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
   if(event.key==='Escape'){event.preventDefault();game.state.mode==='pause'?resume():pause();return;}
@@ -221,8 +242,8 @@ for(const text of LETTER){const p=document.createElement('p');p.textContent=text
 music.volume=clamp(Number(settings.volume??.35),0,1);music.muted=!!settings.muted;
 $('volume').value=music.volume*100;$('volumeValue').value=Math.round(music.volume*100)+'%';
 setReduced(game.state.reduced);
-setAuto(false,{quiet:true});
-if(music.muted){$('sound').textContent='♪̸';$('sound').setAttribute('aria-pressed','false');$('sound').setAttribute('aria-label','Activar música');}
+setAuto(true,{quiet:true});
+if(music.muted){$('sound').textContent='♪̸ Con sonido';$('sound').setAttribute('aria-pressed','false');$('sound').setAttribute('aria-label','Activar música');}
 offerContinue();
 
 try{

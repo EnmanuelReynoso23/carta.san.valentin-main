@@ -82,13 +82,14 @@ test('caerse por un hueco se avisa y devuelve a suelo firme, sin castigo',()=>{
 });
 
 test('el guardado sólo acepta viajes posibles',()=>{
-  const bueno={version:SAVE_VERSION,act:3,lights:[0,1,2,3,4],given:[0,1]};
+  const todas=LIGHTS.map((_,i)=>i);
+  const bueno={version:SAVE_VERSION,act:3,lights:todas,given:[0,1]};
   assert.deepEqual(validSave(bueno).given,[0,1]);
   assert.equal(validSave({...bueno,version:3}),null,'otra versión no vale');
   assert.equal(validSave({...bueno,lights:[0,1]}),null,'no se sale del jardín sin todas las luces');
   assert.equal(validSave({version:SAVE_VERSION,act:1,lights:[0],given:[]}),null,'aún no había luces que recoger');
   assert.equal(validSave({version:SAVE_VERSION,act:0,lights:[],given:[],finished:true}),null,'no se termina en el primer acto');
-  assert.deepEqual(validSave({...bueno,lights:[4,0,1,2,3,3]}).lights,[0,1,2,3,4],'sin repetidas y en orden');
+  assert.deepEqual(validSave({...bueno,lights:[...todas].reverse().concat(3)}).lights,todas,'sin repetidas y en orden');
 });
 
 test('el texto se escribe solo y un toque lo completa antes de pasar',()=>{
@@ -117,17 +118,17 @@ test('la puerta cerrada no deja pasar y el deseo la abre',()=>{
   assert.equal(game.state.actIndex,1,'con la puerta abierta sale a la calle');
 });
 
-test('del jardín no se sale sin las cinco luces, pero saltando se recogen todas',()=>{
+test('del jardín no se sale sin las siete luces, pero saltando se recogen todas',()=>{
   const game=new Game();game.begin({version:SAVE_VERSION,act:2,lights:[],given:[],finished:false});
   // Andando en línea recta sólo caen las que están a la altura de la mano.
   for(let i=0;i<3600;i++)game.update(1/60,{right:true,action:i%12===0});
   assert.equal(game.state.actIndex,2,'la salida no se abre a medias');
-  assert.ok(game.state.taken.length<5,'las luces del aire piden un salto');
+  assert.ok(game.state.taken.length<LIGHTS.length,'las luces del aire piden un salto');
   assert.ok(game.state.player.x<=ACTS[2].exit.x+6,'la salida la detiene');
-  // Con saltos, las cinco.
+  // Con saltos, las siete.
   const director=new Director();
   for(let i=0;i<7200&&game.state.actIndex===2;i++)game.update(1/60,director.intent(game,1/60));
-  assert.equal(game.state.taken.length,5,'saltando se recogen las cinco');
+  assert.equal(game.state.taken.length,LIGHTS.length,'saltando se recogen las siete');
   assert.equal(game.state.actIndex,3,'y entonces sí se sale hacia la plaza');
 });
 
@@ -140,9 +141,9 @@ test('la historia se cuenta sola de principio a fin, sin saltarse una frase',()=
     for(const person of act.people||[])guion.push(...person.talk.map(l=>l.text));
   }
   assert.equal(fin.mode,'ending','tiene que llegar a la carta: '+JSON.stringify(fin));
-  assert.equal(fin.lights,5);
+  assert.equal(fin.lights,LIGHTS.length,'recoge las siete');
   assert.equal(fin.given,4);
-  assert.equal(fin.carried,1,'se guarda una luz para mañana, como prometió');
+  assert.equal(fin.carried,LIGHTS.length-4,'se guarda para mañana lo que no repartió, como prometió');
   assert.equal(game.state.falls,0,'nadie se cae por el arroyo');
   assert.deepEqual(guion.filter(text=>!dicho.includes(text)),[],'quedaron frases sin decir');
   assert.ok(segundos>150&&segundos<270,'dura como la canción, y midió '+segundos.toFixed(0)+'s');
@@ -150,19 +151,53 @@ test('la historia se cuenta sola de principio a fin, sin saltarse una frase',()=
 
 test('continuar un viaje guardado devuelve las luces que quedaban',()=>{
   const game=new Game();
-  game.begin({version:SAVE_VERSION,act:3,lights:[0,1,2,3,4],given:[0,1],finished:false});
+  game.begin({version:SAVE_VERSION,act:3,lights:[0,1,2,3,4,5,6],given:[0,1],finished:false});
   assert.equal(game.state.actIndex,3);
-  assert.equal(game.state.carried.length,3,'quedan tres luces por repartir');
+  assert.equal(game.state.carried.length,5,'quedan cinco luces por repartir');
   assert.deepEqual(game.state.people.filter(p=>p.lit).map(p=>p.index),[0,1]);
   assert.equal(game.state.doorOpen,true,'la puerta del cuarto ya estaba abierta');
 });
 
-test('la carta llega entera y cada luz tiene nombre y color propios',()=>{
-  assert.equal(LETTER.length,5);
+test('la carta son las siete cualidades, una por luz del camino',()=>{
+  assert.equal(LIGHTS.length,7,'siete cualidades');
+  assert.equal(LETTER.length,7,'un párrafo por cualidad');
   for(const parrafo of LETTER)assert.ok(parrafo.trim().length>60);
   assert.equal(new Set(LIGHTS.map(l=>l.color)).size,LIGHTS.length);
   assert.equal(new Set(LIGHTS.map(l=>l.name)).size,LIGHTS.length);
-  assert.match(LETTER.at(-1),/Feliz cumpleaños/);
+  // Las va nombrando en orden: primera, segunda… hasta la séptima.
+  const orden=['primera','segunda','tercera','cuarta','quinta','sexta','séptima'];
+  orden.forEach((palabra,i)=>assert.match(LETTER[i],new RegExp(palabra,'i'),'falta la '+palabra));
+  // Es admiración por lo que ella es, no una declaración ni una felicitación.
+  assert.match(LETTER.at(-1),/te quiero por lo que eres/i);
+  const entera=LETTER.join(' ');
+  assert.doesNotMatch(entera,/cumpleaños|buenas noches|feliz día/i);
+  assert.doesNotMatch(entera,/quieres ser mi|sé mi novia|me gustas/i);
+  // El camino tiene tantas luces como cualidades.
+  const camino=ACTS.find(a=>a.id==='garden');
+  assert.equal(camino.lights.length,LIGHTS.length,'una luz por cualidad');
+});
+
+test('el chico no se deja ver hasta el último acto',()=>{
+  // Aparece sólo al final: ningún acto intermedio lo lleva por delante.
+  for(const act of ACTS)assert.equal(act.ghost,false,act.id+' no debe llevar al chico');
+  const dawn=ACTS.at(-1);
+  assert.equal(dawn.id,'dawn');
+  assert.ok(dawn.props.some(p=>p.kind==='enmanuel'&&p.key),'en el amanecer sí está');
+  for(const act of ACTS.slice(0,-1))
+    for(const linea of act.triggers.flatMap(t=>t.talk).concat((act.props||[]).flatMap(p=>p.talk)))
+      assert.notEqual(linea.who,'Enmanuel',act.id+' no debe hablar con él todavía');
+});
+
+test('la gente de la plaza son cuatro personas distintas, no copias de los protagonistas',()=>{
+  const plaza=ACTS.find(a=>a.id==='plaza');
+  const looks=plaza.people.map(p=>p.look);
+  assert.equal(looks.length,4);
+  assert.equal(new Set(looks).size,4,'cada uno con su propio dibujo');
+  for(const person of plaza.people){
+    assert.ok(person.look,'toca dibujarlos, no sacarlos de la hoja de Génesis');
+    assert.equal(person.sprite,undefined);
+    assert.ok(!['genesis','enmanuel'].includes(person.look));
+  }
 });
 
 test('los recortes de los personajes aíslan la figura y anclan los pies',async()=>{

@@ -60,3 +60,17 @@ luces, que se reparten las cuatro y que nadie se cae— y una pasada en navegado
 que juega el primer acto con el teclado de verdad, termina el resto solo, y
 revisa el guardado, la pausa, el teléfono y los botones táctiles. Sin errores de
 página.
+
+## Revisión del 4 de septiembre · pantalla completa y las siete cualidades
+
+Pasada sobre el juego ya jugable, a partir de lo que se veía mal en pantalla.
+
+- **Pantalla completa siempre.** Fuera la barra lateral y los márgenes: el escenario ocupa el 100 % de la ventana y la interfaz flota encima. Al pulsar *Empezar* se pide además pantalla completa real. En una pantalla vertical el dibujo entra entero en vez de recortarse, porque un 16:9 recortado en vertical deja una rendija inservible; tumbado sí llena la pantalla.
+- **Se cuenta sola por defecto**, con los textos grandes pasando solos (29 px en escritorio, 24 px en la carta). Mover las flechas sigue devolviendo el control al instante.
+- **El paso, arreglado.** La fila de caminar de las hojas no venía en orden: midiendo la separación de los pies en cada dibujo salen dos poses abiertas (5 y 7) y dos cerradas (6 y 4). Puestas 4-5-6-7 los pies parecían quedarse quietos; alternando 5-6-7-4, con el cuerpo subiendo en la pose cerrada y una nubecita de polvo en la pisada, el paso por fin se lee.
+- **La gente de la plaza ya no son ellos dos.** Salían de una tira de sprites que eran variantes de los protagonistas, y encima el guion usaba dos fotogramas *del mismo* personaje para dos vecinos distintos. Ahora los cuatro están dibujados a mano, con su estatura, su pelo, su ropa, su sombra y su brillo: Simón y su bastón, Nora y su moño, Lía y sus coletas, el guardián y su gorra. Cada uno tiene además su propio retrato en la conversación.
+- **Él no se asoma antes de tiempo.** Iba por delante como una silueta en los actos II, III y IV; ahora sólo aparece en el amanecer, que es lo que cuenta la narración.
+- **El amanecer, coherente.** Los edificios cercanos se quedaban en color de noche con el cielo ya rosa, y flotaban seis píxeles por encima de la acera: ahora reciben la luz del alba, apagan ventanas según amanece y se apoyan en el suelo. El sol tiene halo y núcleo en vez de ser un disco plano, y la acera tiene juntas de losa en vez de ser una franja lisa.
+- **Un solo botón de música.** Había dos iconos de nota casi idénticos (silenciar y reproductor). Ahora el ♫ abre una pastilla mínima con el reproductor, el volumen, el enlace y el silenciador dentro.
+
+**Las siete cualidades.** Las luces del camino pasaron de cinco a siete y son las mismas siete de las que habla la carta, una por párrafo y en orden. La carta se reescribió a partir de la que él ya le había escrito: es admiración por lo que ella es, no una declaración. El guardado sube a la versión 5 porque cambia de forma.

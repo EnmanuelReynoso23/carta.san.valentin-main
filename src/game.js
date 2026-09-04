@@ -2,7 +2,7 @@ import {ACTS,LIGHTS} from './story.js';
 import {W,GROUND,clamp,lerp,platforms,stepBody,safeSpot,makeBody,
         Dialogue,validSave,SAVE_VERSION} from './logic.js';
 
-export const SAVE_KEY='genesis-viaje-v4';
+export const SAVE_KEY='genesis-viaje-v5';
 /** Cuánto ha avanzado la noche hacia el amanecer en cada acto. */
 export const DAWN=[.02,.12,.3,.55,.95];
 const REACH=26,LIGHT_REACH={x:22,y:30};

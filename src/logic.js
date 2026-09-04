@@ -96,12 +96,12 @@ export function safeSpot(solids,x){
   return {x:clamp(x,best.x+14,best.x+best.w-14),y:best.y};
 }
 
-export const SAVE_VERSION=4;
+export const SAVE_VERSION=5;
 /**
  * Un guardado sólo vale si describe un viaje posible: no se sale del jardín sin
  * las cinco luces ni se reparte más luz de la que se lleva encima.
  */
-export function validSave(raw,{acts=5,lights=5,people=4}={}){
+export function validSave(raw,{acts=5,lights=7,people=4}={}){
   if(!raw||raw.version!==SAVE_VERSION)return null;
   if(!Number.isInteger(raw.act)||raw.act<0||raw.act>=acts)return null;
   if(!Array.isArray(raw.lights)||!Array.isArray(raw.given))return null;

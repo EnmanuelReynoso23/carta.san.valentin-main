@@ -3,7 +3,24 @@ export {W,H,GROUND,LIFT_MAX};
 const hexMix=(a,b,t)=>{const aa=parseInt(a.slice(1),16),bb=parseInt(b.slice(1),16);return '#'+[16,8,0].map(s=>Math.round(((aa>>s)&255)*(1-t)+((bb>>s)&255)*t).toString(16).padStart(2,'0')).join('');};
 // Las hojas de personaje van en cuatro filas: quieta, caminando, en el aire y
 // celebrando. De ahí salen las poses del salto y la del final.
-const POSE={idle:0,blink:3,walk:4,rise:13,fall:10,cheer:14};
+const POSE={idle:0,blink:3,rise:13,fall:10,cheer:14};
+// La fila de caminar no viene en orden. Midiendo la separación de los pies en
+// cada dibujo salen dos poses de paso abierto (5 y 7) y dos de paso cerrado
+// (6 y 4). Alternando abierto-cerrado-abierto-cerrado el paso por fin se lee;
+// puestas 4,5,6,7 los pies parecían quedarse siempre en el mismo sitio.
+const WALK=[5,6,7,4];
+/**
+ * La gente de la plaza. Antes salían de la misma hoja que Génesis y Enmanuel
+ * —por eso parecían todos ellos dos—; ahora cada uno está dibujado aquí, con
+ * su estatura, su pelo y su ropa.
+ */
+const LOOKS={
+  simon:{h:37,skin:'#c08f6b',hair:'#ded7cd',top:'#7c6244',arm:'#6b543b',leg:'#4b4033',shoe:'#332b23',style:'mayor'},
+  nora:{h:41,skin:'#9c6c4d',hair:'#2c2430',top:'#3f8478',arm:'#37736a',leg:'#2f5d58',shoe:'#2f2c36',style:'mono'},
+  lia:{h:29,skin:'#e0ad89',hair:'#4a2f2a',top:'#e8bb57',arm:'#d3a944',leg:'#7a5f8e',shoe:'#463a52',style:'coletas'},
+  guardian:{h:48,skin:'#7a5139',hair:'#25212b',top:'#3a5480',arm:'#32496f',leg:'#2a3552',shoe:'#1e2436',cap:'#2c3f63',style:'gorra'},
+};
+const PORTRAIT_LOOKS={'Génesis':null,'Simón':'simon','Nora':'nora','Lía':'lia','El guardián':'guardian'};
 
 export class Renderer{
   constructor(canvas){
@@ -41,12 +58,89 @@ export class Renderer{
     const frames=this.meta[name];if(!frames)return;
     const g=this.g;
     const index=cheer?POSE.cheer:air<0?POSE.rise:air>0?POSE.fall:
-      walk?POSE.walk+Math.floor(positiveMod(phase,4)):(positiveMod(this.t,5)<.16?POSE.blink:POSE.idle);
+      walk?WALK[Math.floor(positiveMod(phase,4))]:(positiveMod(this.t,5)<.16?POSE.blink:POSE.idle);
     const f=frames[index],s=.168*scale;
     g.save();g.globalAlpha=alpha;g.translate(Math.round(x),Math.round(y));
     if(dir<0)g.scale(-1,1);
-    const bob=this.soft||air?0:walk?Math.sin(phase*Math.PI)*.5:Math.sin(this.t*2)*.4;
+    const bob=this.soft||air?0:walk?Math.cos(positiveMod(phase,4)*Math.PI)*1.1:Math.sin(this.t*2)*.4;
     g.drawImage(this.images[name],f.x,f.y,f.w,f.h,Math.round(-f.pivotX*s),Math.round(-f.pivotY*s+bob),Math.round(f.w*s),Math.round(f.h*s));
+    g.restore();
+  }
+
+  /**
+   * Una persona de la plaza, dibujada punto a punto: primero las piernas, luego
+   * el torso con los brazos, después la cabeza y al final lo que distingue a
+   * cada uno —el bastón de Simón, el moño de Nora, las coletas de Lía y la
+   * gorra del guardián—. Apagados hasta que Génesis les deja una luz.
+   */
+  person(x,base,look,lit,t){
+    const L=LOOKS[look]||LOOKS.nora,h=L.h,g=this.g;
+    // La luz de las farolas viene de arriba: cada prenda lleva su sombra a un
+    // lado y su brillo arriba, igual que el resto del pixel art del juego.
+    const sombra=c=>hexMix(c,'#0a0d18',.34),brillo=c=>hexMix(c,'#fff6e2',.22);
+    g.save();g.globalAlpha=lit?1:.5;
+    const top=base-h,headH=Math.round(h*.25),chin=top+headH;
+    const hip=base-Math.round(h*.4),torso=hip-chin;
+    const hw=Math.max(3,Math.round(h*.12)),bw=Math.max(4,Math.round(h*.15));
+    const sway=lit&&!this.soft?Math.round(Math.sin(t*1.5+x*.7)*.9):0;
+    const y=v=>v+sway;
+    // piernas, con la de atrás más oscura y un hueco de 1 píxel en medio
+    const legW=Math.max(2,bw-2),legH=base-hip-2;
+    this.r(x-bw+1,hip,legW,legH,sombra(L.leg));
+    this.r(x+1,hip,legW,legH,L.leg);
+    this.r(x-bw+1,hip,legW,1,sombra(L.top));
+    this.r(x-bw,base-2,bw,2,sombra(L.shoe));
+    this.r(x+1,base-2,bw,2,L.shoe);
+    this.r(x+1,base-2,bw,1,brillo(L.shoe));
+    // torso: sombra a la izquierda, cuello y cintura
+    this.r(x-bw,y(chin),bw*2,torso,L.top);
+    this.r(x-bw,y(chin),Math.max(2,Math.round(bw*.6)),torso,sombra(L.top));
+    this.r(x-bw,y(chin),bw*2,1,brillo(L.top));
+    this.r(x-2,y(chin),4,Math.max(2,Math.round(headH*.3)),brillo(L.top));
+    this.r(x-bw,y(hip-2),bw*2,2,sombra(L.top));
+    // brazos y manos
+    const armH=Math.max(3,Math.round(torso*.74));
+    this.r(x-bw-2,y(chin+2),2,armH,sombra(L.arm));
+    this.r(x+bw,y(chin+2),2,armH,L.arm);
+    this.r(x-bw-2,y(chin+2+armH),2,2,sombra(L.skin));
+    this.r(x+bw,y(chin+2+armH),2,2,L.skin);
+    // cabeza: cara, mandíbula, ojos y boca
+    this.r(x-hw,y(top),hw*2,headH,L.skin);
+    this.r(x-hw,y(top),Math.max(1,Math.round(hw*.5)),headH,sombra(L.skin));
+    this.r(x-hw,y(top+headH-1),hw*2,1,sombra(L.skin));
+    const eye=y(top+Math.round(headH*.56));
+    this.r(x-2,eye,1,1,'#241d24');this.r(x+1,eye,1,1,'#241d24');
+    this.r(x-2,eye-2,1,1,sombra(L.hair));this.r(x+1,eye-2,1,1,sombra(L.hair));
+    this.r(x,eye+3,1,1,sombra(L.skin));
+    // pelo: casco, volumen a los lados y un brillo arriba
+    const hairH=Math.max(2,Math.round(headH*.38));
+    this.r(x-hw,y(top),hw*2,hairH,L.hair);
+    this.r(x-hw-1,y(top+1),1,Math.round(headH*.55),sombra(L.hair));
+    this.r(x+hw,y(top+1),1,Math.round(headH*.55),L.hair);
+    this.r(x-hw+1,y(top),Math.max(2,hw),1,brillo(L.hair));
+    if(L.style==='mayor'){
+      // Simón: el pelo ya blanco, la espalda un poco vencida y su bastón.
+      this.r(x-hw-1,y(top),hw*2+2,2,brillo(L.hair));
+      this.r(x+bw+2,y(chin+4),1,base-chin-4-sway,'#6d5540');
+      this.r(x+bw+1,y(chin+3),3,1,'#8a6c4f');
+    }else if(L.style==='mono'){
+      // Nora: el moño recogido y la flor que le devuelve a Génesis.
+      this.r(x-2,y(top-3),5,4,L.hair);
+      this.r(x-2,y(top-3),5,1,brillo(L.hair));
+      if(lit){this.r(x-bw-4,y(chin+4+armH),2,2,'#e8798f');this.r(x-bw-4,y(chin+6+armH),1,2,'#6f9a72');}
+    }else if(L.style==='coletas'){
+      // Lía: las dos coletas, que se mueven con ella.
+      const cl=Math.round(headH*.9);
+      this.r(x-hw-2,y(top+2),2,cl,L.hair);this.r(x+hw,y(top+2),2,cl,L.hair);
+      this.r(x-hw-2,y(top+2+cl),2,1,brillo(L.hair));this.r(x+hw,y(top+2+cl),2,1,brillo(L.hair));
+    }else if(L.style==='gorra'){
+      // El guardián: la gorra con visera y la placa en el pecho.
+      const cap=Math.max(2,Math.round(headH*.42));
+      this.r(x-hw-1,y(top-1),hw*2+2,cap,L.cap);
+      this.r(x-hw-1,y(top-1),hw*2+2,1,brillo(L.cap));
+      this.r(x-hw-3,y(top-1+cap),hw*2+5,1,sombra(L.cap));
+      this.r(x-bw+2,y(chin+4),2,2,'#d9c07a');
+    }
     g.restore();
   }
   light(x,y,color,size=1,power=.85){
@@ -64,9 +158,13 @@ export class Renderer{
       this.r(positiveMod(s.x-cam*.035,W),s.y,s.size,s.size,'#f2dcd1');
     }
     g.globalAlpha=1;
-    const mx=392-cam*.02,my=48;
-    this.glow(mx,my+3,52,dawn>.55?'#ffe0a6':'#cee2e1',.22);
-    g.fillStyle=dawn>.55?'#ffdb9e':'#e8e2c8';g.beginPath();g.arc(mx,my,10,0,Math.PI*2);g.fill();
+    const mx=392-cam*.02,my=48,sol=dawn>.55;
+    // De noche una luna con su sombra; al amanecer, un sol con halo y núcleo,
+    // para que deje de leerse como un círculo pegado encima del cielo.
+    this.glow(mx,my+3,sol?78:52,sol?'#ffd28a':'#cee2e1',sol?.3:.22);
+    if(sol)this.glow(mx,my+2,34,'#ffe7b4',.34);
+    g.fillStyle=sol?'#ffdb9e':'#e8e2c8';g.beginPath();g.arc(mx,my,10,0,Math.PI*2);g.fill();
+    if(sol){g.fillStyle='#fff3d2';g.beginPath();g.arc(mx-2,my-2,6,0,Math.PI*2);g.fill();}
     if(dawn<.5){g.fillStyle=hexMix('#101c3c','#31446a',.3);g.beginPath();g.arc(mx-6,my-3,9,0,Math.PI*2);g.fill();}
     this.sp('nube0',positiveMod(70-cam*.05,W+180)-60,58,22,.28+dawn*.4);
     this.sp('nube1',positiveMod(290-cam*.035,W+220)-70,44,19,.24+dawn*.4);
@@ -103,6 +201,16 @@ export class Renderer{
       const wx=i*61.3,x=positiveMod(wx-cam,scene.width);
       if((scene.gaps||[]).some(([a,b])=>wx>=a-6&&wx<=b+6))continue;
       this.r(x,GROUND+9+(i%4)*7,2+(i%3),1,green?'#659680':hexMix('#8f8b98','#c9a58f',dawn));
+    }
+    // Las juntas de las losas: sin ellas la acera era una franja lisa y muerta.
+    if(!green&&scene.kind!=='room'){
+      const junta=hexMix('#4d5568','#ad8d84',dawn);
+      for(let i=0;i<26;i++){
+        const wx=i*74+18,x=wx-cam;
+        if(x<-4||x>W+4)continue;
+        if((scene.gaps||[]).some(([a,b])=>wx>=a-8&&wx<=b+8))continue;
+        this.r(x,GROUND+4,1,H-GROUND+LIFT_MAX,junta);
+      }
     }
   }
   /** El arroyo del jardín: agua oscura con el cielo temblando encima. */
@@ -279,15 +387,22 @@ export class Renderer{
       for(let i=0;i<26;i++)this.sp('arbusto',positiveMod(i*73-cam*.85,scene.width+200)-100,GROUND+2,26,.9);
     }else{
       const rng=seeded(scene.kind==='dawn'?33:41);
+      // A estos edificios también les llega el amanecer. Antes se quedaban de
+      // noche con el cielo ya rosa y la escena se veía sucia.
+      const caras=['#5c536b','#46566d','#625970'].map(c=>hexMix(c,'#c6a29f',dawn));
+      const cornisa=hexMix('#262c46','#7c6270',dawn),marco=hexMix('#303851','#705d6b',dawn);
+      const apagada=hexMix('#45566e','#93818b',dawn),encendida=hexMix('#d3ac82','#f2d3ad',dawn*.5);
+      const cruz=hexMix('#7c6e78','#a48d8d',dawn);
       for(let x=-120;x<scene.width+200;x+=112){
         const height=62+rng()*42,sx=x-cam*.72;
-        this.r(sx,204-height,84,height,['#5c536b','#46566d','#625970'][Math.floor(rng()*3)]);
-        this.r(sx-4,197-height,92,7,'#262c46');
+        // Bajan hasta el suelo: antes flotaban por encima de la acera.
+        this.r(sx,204-height,84,height+GROUND-204,caras[Math.floor(rng()*3)]);
+        this.r(sx-4,197-height,92,7,cornisa);
         for(let row=0;row<Math.floor((height-14)/28);row++)for(let col=0;col<3;col++){
-          const wx=sx+10+col*24,wy=204-height+15+row*28,lit=rng()>.35;
-          this.r(wx-2,wy-2,16,20,'#303851');this.r(wx,wy,12,15,lit?'#d3ac82':'#45566e');
-          this.r(wx+5,wy,2,15,'#7c6e78');this.r(wx,wy+7,12,2,'#7c6e78');
-          if(lit)this.glow(wx+6,wy+7,15,'#eac18d',.08);
+          const wx=sx+10+col*24,wy=204-height+15+row*28,lit=rng()>.35+dawn*.42;
+          this.r(wx-2,wy-2,16,20,marco);this.r(wx,wy,12,15,lit?encendida:apagada);
+          this.r(wx+5,wy,2,15,cruz);this.r(wx,wy+7,12,2,cruz);
+          if(lit)this.glow(wx+6,wy+7,15,'#eac18d',.08*(1-dawn*.7));
         }
       }
     }
@@ -316,6 +431,14 @@ export class Renderer{
       const f=this.atlas[who==='Luz'?'brillo0':'luna0'];if(!f)return;
       g.drawImage(this.images.atlas,...f,10,8,50,62);return;
     }
+    const look=PORTRAIT_LOOKS[who];
+    if(look){
+      // El mismo dibujo del escenario, ampliado: se reconoce a quien habla.
+      const before=this.g,k=66/LOOKS[look].h;
+      this.g=g;g.save();g.translate(35,74);g.scale(k,k);
+      this.person(0,0,look,true,0);
+      g.restore();this.g=before;return;
+    }
     if(!['Génesis','Enmanuel'].includes(who)){
       const f=this.atlas.corazon;if(!f)return;
       g.drawImage(this.images.atlas,...f,17,10,36,58);return;
@@ -336,9 +459,11 @@ export class Renderer{
     // La gente del acto IV: apagada hasta que Génesis les deja una luz.
     for(const person of state.people||[]){
       const px=person.x-cam;
+      if(px<-50||px>W+50)continue;
       if(person.lit)this.glow(px,GROUND-26,44,'#ffd39a',.6);
-      this.sp(person.sprite,px,GROUND+1,42,person.lit?1:.45);
-      if(person.lit)this.light(px+16,GROUND-46,'#ffd8a2',.7,.5);
+      this.r(px-7,GROUND+1,15,2,'#10253755');
+      this.person(px,GROUND,person.look,person.lit,this.t);
+      if(person.lit)this.light(px+17,GROUND-46,'#ffd8a2',.7,.5);
     }
     for(const item of state.lights||[]){
       if(item.taken)continue;
@@ -359,6 +484,12 @@ export class Renderer{
     }
     const player=state.player;
     this.r(player.x-cam-10,GROUND+1,21,2,'#10253766');
+    if(player.walking&&player.onGround&&!this.soft){
+      const puff=positiveMod(player.phase,1);
+      g.globalAlpha=(1-puff)*.5;
+      this.r(player.x-cam-player.dir*(5+puff*11),player.y-1-puff*3,2,1,'#d7c3a4');
+      g.globalAlpha=1;
+    }
     this.actor('genesis',player.x-cam,player.y,{walk:player.walking,dir:player.dir,phase:player.phase,
       air:player.onGround?0:Math.sign(player.vy||0)||-1,cheer:state.cheer});
     for(let i=0;i<(state.carried||[]).length;i++){

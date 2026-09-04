@@ -1,5 +1,5 @@
 // Para que el viaje también funcione sin internet: una vez visto, se queda.
-const CACHE='genesis-odisea-v1';
+const CACHE='genesis-odisea-v2';
 const SHELL=['./','index.html','styles.css','manifest.webmanifest',
   'src/main.js','src/game.js','src/logic.js','src/story.js','src/render.js','src/audio.js','src/input.js','src/auto.js',
   'assets/atlas.json','assets/characters.json','assets/atlas.png','assets/genesis.png','assets/enmanuel.png',
